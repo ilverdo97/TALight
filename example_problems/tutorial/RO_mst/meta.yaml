@@ -9,7 +9,7 @@ services:
       pwd:
         regex: ^(.*)$
         default: ""
-        explain: di base, il controllo e validazione che effettuiamo sulla soluzione sottomessa dal problem solver è un King Arthur check. Tuttavia, quando una password da istruttore è fornita tramite questo argomento, allora anche il responso prodotto dall'oracolo viene integrato nella risposta immediata del servizio `check`, per fornire un feedback più completo (ma anche spoilerante del problema).
+        explain: "di base, il controllo e validazione che effettuiamo sulla soluzione sottomessa dal problem solver è un King Arthur check. Tuttavia, quando una password da istruttore è fornita tramite questo argomento, allora anche il responso prodotto dall'oracolo viene integrato nella risposta immediata del servizio `check`, per fornire un feedback più completo (ma anche spoilerante del problema)."
 
       # section with the instance assigned to the problem-solver/student:
       n:
@@ -27,13 +27,13 @@ services:
       forbidden_edges:
         regex: ^(.*)$
         default: "[]"
-        explain: ci interessano gli MST tenuti ad evitare questi archi
+        explain: "ci interessano gli MST tenuti ad evitare questi archi"
         example1: "il valore di default [], dove nessun arco è proibito, offre il nostro primo running example"
         example2: "il valore [1] offre il nostro secondo running example, dove l'arco e1 è il solo arco ad essere proibito"
       forced_edges:
         regex: ^(.*)$
         default: "[]"
-        explain: ci interessano gli MST tenuti ad includere questi archi
+        explain: "ci interessano gli MST tenuti ad includere questi archi"
       query_edge:
         regex: ^(0|[1-9][0-9]*)$
         default: 0
@@ -68,24 +68,23 @@ services:
         default: "[[0,1],[0,2]]"
         explain: "la lista di tutte le soluzioni ottime (in qualsiasi ordine)"
         example: "il valore di default è risposta corretta per il Caso d'Esempio 1 (ma scambiare le due soluzioni nell'elenco, o gli elementi all'interno di una stessa sottolista, non farebbe differenza); per il Caso d'Esempio 2, si ometta la seconda ed ultima soluzione della lista"
-
       edge_profile:
         regex: ^(.*)$
         default: "in_all"
-        explain: expected one string among:\n     [in_all] if the query arc belongs to all MSTs.\n     [in_no] if the query arc belongs to no MSTs.\n     [in_some_but_not_in_all] if the query arc belongs to some MST but there also exist MSTs that do not use the query arc."
+        explain: "expected one string among: [in_all] if the query arc belongs to all MSTs. [in_no] if the query arc belongs to no MSTs. [in_some_but_not_in_all] if the query arc belongs to some MST but there also exist MSTs that do not use the query arc."
         example: "il valore di default è risposta corretta per il Caso d'Esempio 1"
       cyc_cert:
         regex: ^(.*)$
         default: "[]"
-        explain: expected a cyclic sequence of edges. The sequence is left empty in case no certificate cycle is present.
+        explain: "expected a cyclic sequence of edges. The sequence is left empty in case no certificate cycle is present."
       edgecut_cert:
         regex: ^(.*)$
         default: "[0,1]"
-        explain: expected a cut of the graph in the form of a list of edges
+        explain: "expected a cut of the graph in the form of a list of edges"
         example: "[0,1] would be the correct edgecut certificate per il Caso d'Esempio 1. Indeed to prove that arc e0 is in all optimal solution consider that arc e0 is the one of strictly minimum cost in the cut comprising the arcs e0 and e1."
       cutshore_cert:
         regex: ^(.*)$
-        explain: expected a cut of the graph in the form of a non-empty list of nodes leaving out at least one node. These nodes form one shore of the intended cut.
+        explain: "expected a cut of the graph in the form of a non-empty list of nodes leaving out at least one node. These nodes form one shore of the intended cut."
         default: "[0]"
         example: "[0] would be the correct cutshore certificate per il Caso d'Esempio 1. Indeed to prove that arc e0 is in all optimal solution consider that arc e0 is the one of strictly minimum cost in the cut separating node v0 from the other nodes of the graph."
 
@@ -176,7 +175,6 @@ services:
         explain: ci interessano gli MST tenuti ad evitare questi archi
         example1: Il primo esempio corrisponde ai valori di dafault, dove nessun arco è proibito.
         example2: "Come secondo esempio, si consideri `forbidden_edges=[0]` dove e0=v0-v1 è il solo arco proibito."
- 
       forced_edges:
         regex: ^(.*)$
         default: "[]"
