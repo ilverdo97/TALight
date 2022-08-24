@@ -283,7 +283,6 @@ class verify_submission_problem_specific(verify_submission_gen):
                           f"poi la risposta corretta, ma il formato è corretto")
         return True
 
-
     def verify_feasibility(self, SEF):
         if not super().verify_feasibility(SEF):
             return False
