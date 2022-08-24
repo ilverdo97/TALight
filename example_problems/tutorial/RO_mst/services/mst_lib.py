@@ -39,10 +39,77 @@ answer_objects_implemented = [
 ]
 
 
+class Graph:
+    def __init__(self, vertex):
+        self.V = vertex
+        self.graph = []
+
+    def add_edge(self, u, v, w, l):
+        self.graph.append((u, v, w, l))
+
+    def search(self, parent, i):
+        return i if parent[i] == i else self.search(parent, parent[i])
+
+    def apply_union(self, parent, rank, x, y):
+        x_root = self.search(parent, x)
+        y_root = self.search(parent, y)
+        if rank[x_root] < rank[y_root]:
+            parent[x_root] = y_root
+        elif rank[x_root] > rank[y_root]:
+            parent[y_root] = x_root
+        else:
+            parent[y_root] = x_root
+            rank[x_root] += 1
+
+    def kruskalFR(self, F, R):  # F = FORCED, R = FORBIDDEN
+        result = []
+        tot_w = 0
+        i, e = 0, 0
+        self.graph = sorted(self.graph, key=lambda item: item[2])
+        parent = []
+        rank = []
+        for node in range(self.V):
+            parent.append(node)
+            rank.append(0)
+        for u, v, w, l in self.graph:    # scorri la lista e aggiungi gli archi che appartengono a F
+            x = self.search(parent, u)
+            y = self.search(parent, v)
+            if l in F:
+                e += 1
+                result.append(l)
+                tot_w += w
+                self.apply_union(parent, rank, x, y)
+        while e < self.V - 1:               # scorri la lista e aggiungi gli archi che NON appartengono a F o R
+            u, v, w, l = self.graph[i]
+            i += 1
+            x = self.search(parent, u)
+            y = self.search(parent, v)
+            if x != y and l not in R and l not in F:
+                e += 1
+                result.append(l)
+                tot_w += w
+                self.apply_union(parent, rank, x, y)
+        return result, tot_w
+
+
 def solver(input_to_oracle):
-    # inserire il solver qui
-    INSTANCE = input_to_oracle["instance"]
-    # TODO
+    instance = input_to_oracle['instance']
+    n = instance['n']
+    m = instance['m']
+    edges = instance['edges']
+    forbidden_edges = instance['forbidden_edges']
+    forced_edges = instance['edges_edges']
+    query_edges = instance['query_edges']
+
+    edges = ast.literal_eval(edges)
+    forbidden_edges = ast.literal_eval(forbidden_edges)
+    forced_edges = ast.literal_eval(forced_edges)
+    graph = Graph(n)
+    for l, e in enumerate(edges):
+        u, v = list(e[0])
+        graph.add_edge(u, v, e[1], l)
+
+    opt_sol, opt_val = graph.kruskalFR(forced_edges, forbidden_edges)
 
 
 class verify_submission_problem_specific(verify_submission_gen):
