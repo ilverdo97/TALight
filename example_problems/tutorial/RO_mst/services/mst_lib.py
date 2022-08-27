@@ -1,9 +1,8 @@
-import ast, math, operator, itertools, re
+import ast
+import re
 from sys import stderr
-from typing import Optional, List, Dict, Callable
-from dataclasses import dataclass
-from numpy import true_divide
-import networkx as nx
+from typing import Dict
+
 from RO_verify_submission_gen_prob_lib import verify_submission_gen
 
 instance_objects_spec = {
@@ -103,19 +102,22 @@ def check_instance_consistency(instance):
 
 
 class Graph:
-    def __init__(self, vertex):
-        self.V = vertex
-        self.graph = []
+    def __init__(self, vertices):
+        self.V = vertices
+        self.edges = []
+        self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
     def add_edge(self, u, v, w, l):
-        self.graph.append((u, v, w, l))
+        self.edges.append((u, v, w, l))
+        self.adjacency[u][v].append({'weight': w, 'label': l})
+        self.adjacency[v][u].append({'weight': w, 'label': l})
 
-    def search(self, parent, i):
-        return i if parent[i] == i else self.search(parent, parent[i])
+    def _search(self, parent, i):
+        return i if parent[i] == i else self._search(parent, parent[i])
 
-    def apply_union(self, parent, rank, x, y):
-        x_root = self.search(parent, x)
-        y_root = self.search(parent, y)
+    def _apply_union(self, parent, rank, x, y):
+        x_root = self._search(parent, x)
+        y_root = self._search(parent, y)
         if rank[x_root] < rank[y_root]:
             parent[x_root] = y_root
         elif rank[x_root] > rank[y_root]:
@@ -124,35 +126,84 @@ class Graph:
             parent[y_root] = x_root
             rank[x_root] += 1
 
-    def kruskalFR(self, F, R):  # F = FORCED, R = FORBIDDEN
+    def kruskal_constrained(self, fixed, excluded):
         result = []
         tot_w = 0
         i, e = 0, 0
-        self.graph = sorted(self.graph, key=lambda item: item[2])
+        self.edges = sorted(self.edges, key=lambda item: item[2])
         parent = []
         rank = []
         for node in range(self.V):
             parent.append(node)
             rank.append(0)
-        for u, v, w, l in self.graph:    # scorri la lista e aggiungi gli archi che appartengono a F
-            x = self.search(parent, u)
-            y = self.search(parent, v)
-            if l in F:
+        for u, v, w, l in self.edges:
+            x = self._search(parent, u)
+            y = self._search(parent, v)
+            if l in fixed:
                 e += 1
                 result.append(l)
                 tot_w += w
-                self.apply_union(parent, rank, x, y)
-        while e < self.V - 1:               # scorri la lista e aggiungi gli archi che NON appartengono a F o R
-            u, v, w, l = self.graph[i]
+                self._apply_union(parent, rank, x, y)
+        while e < self.V - 1:
+            u, v, w, l = self.edges[i]
             i += 1
-            x = self.search(parent, u)
-            y = self.search(parent, v)
-            if x != y and l not in R and l not in F:
+            x = self._search(parent, u)
+            y = self._search(parent, v)
+            if x != y and l not in excluded and l not in fixed:
                 e += 1
                 result.append(l)
                 tot_w += w
-                self.apply_union(parent, rank, x, y)
+                self._apply_union(parent, rank, x, y)
         return result, tot_w
+
+    def _find_substitute(self, cut: int, tree: set, excluded: set):
+        cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
+        V1 = {cut_u}
+        tmp_list = [cut_u]
+
+        while tmp_list:
+            print(f"current list: {tmp_list}")
+            u = tmp_list.pop()
+            print(f"current node u: {u}")
+            for v in range(self.V):
+                print(f"v = {v}")
+                for edge in self.adjacency[u][v]:
+                    print(edge)
+                    if edge['label'] in tree and edge['label'] != cut_l and v not in V1:
+                        print(f"added v: {v}")
+                        tmp_list.append(v)
+                        V1.add(v)
+                        break
+
+        V2 = set(range(self.V)).difference(V1)
+
+        for u, v, w, l in self.edges:
+            if l != cut_l and \
+                    l not in tree and \
+                    l not in excluded and \
+                    ((u in V1 and v in V2) or (u in V2 and v in V1)) and \
+                    w == cut_w:
+                return l
+        return None
+
+    def _all_mst(self, tree: set, fixed: set, excluded: set):
+        search_set = tree.difference(fixed)
+        msts = []
+        for e in search_set:
+            sub = self._find_substitute(e, tree, excluded)
+            if sub is not None:
+                new_tree = tree
+                new_tree.remove(e)
+                new_tree.add(sub)
+                msts.append(list(new_tree))
+                others = self._all_mst(new_tree, fixed, excluded.union({e}))
+                if others:
+                    msts.append(others)
+        return msts
+
+    def all_mst(self, fixed: list, excluded: list):
+        first, _ = self.kruskal_constrained(fixed, excluded)
+        return [first] + self._all_mst(set(first), set(fixed), set(excluded))
 
 
 def solver(input_to_oracle):
@@ -162,7 +213,7 @@ def solver(input_to_oracle):
     edges = instance['edges']
     forbidden_edges = instance['forbidden_edges']
     forced_edges = instance['forced_edges']
-    query_edges = instance['query_edge']
+    query_edge = instance['query_edge']
 
     edges = ast.literal_eval(edges)
     forbidden_edges = ast.literal_eval(forbidden_edges)
@@ -172,7 +223,18 @@ def solver(input_to_oracle):
         u, v = list(e[0])
         graph.add_edge(u, v, e[1], l)
 
-    opt_sol, opt_val = graph.kruskalFR(forced_edges, forbidden_edges)
+    opt_sol, opt_val = graph.kruskal_constrained(forced_edges, forbidden_edges)
+    list_opt_sols = graph.all_mst(forced_edges, forbidden_edges)
+    num_opt_sols = len(list_opt_sols)
+    edge_in = 0
+    edge_profile = 'in_no'
+    for mst in list_opt_sols:
+        if query_edge in mst:
+            edge_in += 1
+    if edge_in == len(list_opt_sols):
+        edge_profile = 'in_all'
+    elif edge_in > 0:
+        edge_profile = 'in_some_but_not_in_all'
 
     print(f"input_to_oracle={input_to_oracle}", file=stderr)
     input_data = input_to_oracle["input_data_assigned"]
