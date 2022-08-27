@@ -162,15 +162,10 @@ class Graph:
         tmp_list = [cut_u]
 
         while tmp_list:
-            print(f"current list: {tmp_list}")
             u = tmp_list.pop()
-            print(f"current node u: {u}")
             for v in range(self.V):
-                print(f"v = {v}")
                 for edge in self.adjacency[u][v]:
-                    print(edge)
                     if edge['label'] in tree and edge['label'] != cut_l and v not in V1:
-                        print(f"added v: {v}")
                         tmp_list.append(v)
                         V1.add(v)
                         break
@@ -198,7 +193,7 @@ class Graph:
                 msts.append(list(new_tree))
                 others = self._all_mst(new_tree, fixed, excluded.union({e}))
                 if others:
-                    msts.append(others)
+                    msts += others
         return msts
 
     def all_mst(self, fixed: list, excluded: list):
