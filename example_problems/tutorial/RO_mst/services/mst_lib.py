@@ -102,20 +102,20 @@ def check_instance_consistency(instance):
 
 
 class Graph:
-    def __init__(self, vertices):
+    def __init__(self, vertices: int):
         self.V = vertices
         self.edges = []
         self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
-    def add_edge(self, u, v, w, l):
+    def add_edge(self, u: int, v: int, w: float, l: int):
         self.edges.append((u, v, w, l))
         self.adjacency[u][v].append({'weight': w, 'label': l})
         self.adjacency[v][u].append({'weight': w, 'label': l})
 
-    def _search(self, parent, i):
+    def _search(self, parent: list, i: int):
         return i if parent[i] == i else self._search(parent, parent[i])
 
-    def _apply_union(self, parent, rank, x, y):
+    def _apply_union(self, parent: list, rank: list, x: int, y: int):
         x_root = self._search(parent, x)
         y_root = self._search(parent, y)
         if rank[x_root] < rank[y_root]:
@@ -126,7 +126,7 @@ class Graph:
             parent[y_root] = x_root
             rank[x_root] += 1
 
-    def kruskal_constrained(self, fixed, excluded):
+    def kruskal_constrained(self, fixed: list, excluded: list):
         result = []
         tot_w = 0
         i, e = 0, 0
