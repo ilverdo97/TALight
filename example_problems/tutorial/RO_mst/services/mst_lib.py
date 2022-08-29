@@ -420,19 +420,40 @@ class verify_submission_problem_specific(verify_submission_gen):
                                      f"oggetti dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['list_opt_sol'].alias}`")
 
         if 'num_opt_sols' in self.goals:
-            answ = ast.literal_eval(self.goals['list_opt_sols'].answ)
+            answ = ast.literal_eval(self.goals['num_opt_sols'].answ)
             if answ <= 0:
                 return SEF.feasibility_NO(answ, f"Il numero di soluzioni ottime inserito è minore o uguale di 0")
             if answ > self.I.n ** (self.I.n - 2):
-                return SEF.feasibility_NO(answ, f"In qualsiasi grafo non possono esistere più di n^(n-2) ST")
-            SEF.feasibility_OK(answ, f"Come {self.goals['list_opt_sols'].alias} hai immesso un sottoinsieme degli "
-                                     f"oggetti dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['list_opt_sol'].alias}`")
+                return SEF.feasibility_NO(answ, f"In qualsiasi grafo non possono esistere più di n^(n-2) spannin trees, dove n è il numero di archi")
+            SEF.feasibility_OK(answ, f"Come {self.goals['num_opt_sols'].alias} hai immesso un sottoinsieme degli "
+                                     f"oggetti dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['num_opt_sol'].alias}`")
         return True
 
     def verify_consistency(self, SEF):
         if not super().verify_consistency(SEF):
             return False
-        # TODO
+        if 'opt_sol' in self.goals and 'opt_val' in self.goals:
+            opt_sol = ast.literal_eval(self.goals['opt_sol'].answ)
+            opt_val = ast.literal_eval(self.goals['opt_val'].answ)
+            if sum([self.I.edges[i][1] for i in opt_sol]) != opt_val:
+                return SEF.consistency_NO(['opt_val', 'opt_sol'], f"Il peso totale di {self.goals['opt_sol'].alias} e il valore {self.goals['opt_val'].alias} non corrispondono")
+            SEF.consistency_OK(['opt_val', 'opt_sol'], f"Il peso totale di {self.goals['opt_val'].alias} e il valore "
+                                                       f"{self.goals['opt_sol'].alias} corrispondono", f"resta da verificare l'ottimalità")
+        if 'list_opt_sols' in self.goals:
+            list_opt_sols = ast.literal_eval(self.goals['list_opt_sols'].answ)
+            sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in list_opt_sols]
+            if len(set(sols_weights)) != 1:
+                return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzoni in {self.goals['list_opt_sols'].alias} hanno lo stesso peso")
+            SEF.consistency_OK(['list_opt_sols'], f"Tutte le soluzuioni in {self.goals}", f"resta da verificare l'ottimalità")
+
+        if 'list_opt_sols' in self.goals and 'opt_val' in self.goals:
+            list_opt_sols = ast.literal_eval(self.goals['list_opt_sols'].answ)
+            opt_val = ast.literal_eval(self.goals['opt_val'].answ)
+            sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in list_opt_sols]
+            if not all(weight == opt_val for weight in sols_weights):
+                return SEF.consistency_NO(['list_opt_sols', 'opt_val'], f"Il peso totale di una delle soluzioni in {self.goals['opt_sol'].alias} e il valore {self.goals['opt_val'].alias} non corrispondono")
+            SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il peso totale di ogni soluzione in {self.goals['list_opt_sols'].alias} e il valore {self.goals['opt_val'].alias} corrispondono", f"resta da verificare l'ottimalità")
+        return True
 
     def verify_optimality(self, SEF):
         if not super().verify_optimality(SEF):
