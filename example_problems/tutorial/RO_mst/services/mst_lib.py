@@ -425,6 +425,9 @@ class verify_submission_problem_specific(verify_submission_gen):
                 return SEF.feasibility_NO(answ, f"Il numero di soluzioni ottime inserito è minore o uguale di 0")
             if answ > self.I.n ** (self.I.n - 2):
                 return SEF.feasibility_NO(answ, f"In qualsiasi grafo non possono esistere più di n^(n-2) ST")
+            SEF.feasibility_OK(answ, f"Come {self.goals['list_opt_sols'].alias} hai immesso un sottoinsieme degli "
+                                     f"oggetti dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['list_opt_sol'].alias}`")
+        return True
 
     def verify_consistency(self, SEF):
         if not super().verify_consistency(SEF):
