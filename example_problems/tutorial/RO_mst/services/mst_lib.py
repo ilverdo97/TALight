@@ -1,5 +1,6 @@
 import ast
 import re
+import networkx as nx
 from sys import stderr
 from typing import Dict
 
@@ -55,6 +56,33 @@ def check_isolated_nodes_by_forbidden(n, edges, forbidden_edges):
     return len(nodes_founded) != n
 
 
+def check_tree(tree: list, edges: list):
+    graph = nx.MultiGraph(len(tree))
+    for i in tree:
+        nodes = list(edges[i][0])
+        graph.add_weighted_edges_from((nodes[0], nodes[1], edges[i][1]))
+    return nx.is_tree(graph)
+
+
+def check_spanning_tree(tree: list, n: int, edges: list):
+    nodes_founded = set()
+    for i in tree:
+        nodes_founded = nodes_founded.union(edges[i][0])
+    return len(nodes_founded) == n
+
+
+def check_min_weight(input_weight: list, edges: list, nodes: int):
+    weights = sorted([w for _, w in edges])
+    min_weight = sum(weights[:nodes - 1])
+    return input_weight >= min_weight
+
+
+def check_max_weight(input_weight: list, edges: list, nodes: int):
+    weights = sorted([w for _, w in edges], reverse=True)
+    max_weight = sum(weights[:nodes - 1])
+    return input_weight <= max_weight
+
+
 def check_instance_consistency(instance):
     print(f"instance={instance}", file=stderr)
     n = instance['n']
@@ -71,6 +99,10 @@ def check_instance_consistency(instance):
     forced_edges = ast.literal_eval(forced_edges)
     query_edge = int(query_edge)
 
+    if n <= 0:
+        print(f"Errore: il numero di nodi è minore o ugauale a 0")
+    if m <= 0:
+        print(f"Errore: il numero di archi è minore o uguale a   0")
     if m != len(edges):
         print(f"Errore: il numero di archi non corrisponde con la lista data")
         exit(0)
@@ -202,7 +234,7 @@ class Graph:
 
 
 def solver(input_to_oracle):
-    instance = input_to_oracle['instance']
+    instance = input_to_oracle['input_data_assigned']
     n = instance['n']
     m = instance['m']
     edges = instance['edges']
@@ -343,7 +375,56 @@ class verify_submission_problem_specific(verify_submission_gen):
     def verify_feasibility(self, SEF):
         if not super().verify_feasibility(SEF):
             return False
-        # TODO
+        if 'opt_sol' in self.goals:
+            answ = ast.literal_eval(self.goals['opt_sol'].answ)
+            if not all(0 <= e < self.I.m for e in answ):
+                return SEF.feasibility_NO(answ, f"La soluzione ottima data presenta degli archi che non esistono.")
+            if len(answ) != len(set(answ)):
+                return SEF.feasability_NO(answ, f"La soluzione ottima presenta degli archi ripetuti.")
+            if not check_tree(answ, self.I.edges):
+                return SEF.feasability_NO(answ, f"La soluzione ottima inserita non rappresenta un albero.")
+            if not check_spanning_tree(answ, self.I.n, self.I.edges):
+                return SEF.feasibility_NO(answ, f"La soluzione ottima inserita non è uno spanning tree")
+            if len(set(answ).intersection(set(self.I.forbidden_edges))) != 0:
+                return SEF.feasibility_NO(answ, f"La soluzione ottima inserita contiene dei forbidden_edges")
+            if len(set(answ).intersection(set(self.I.forced_edges))) != len(self.I.forced_edges):
+                return SEF.feasibility_NO(answ, f"La soluzione ottima inserita non contiene tutti i forced_edges")
+            SEF.feasibility_OK(answ, f"Come `{self.goals['opt_sol'].alias}` hai immesso un sottoinsieme degli oggetti "
+                                     f"dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['opt_sol'].alias}`")
+
+        if 'opt_val' in self.goals:
+            answ = ast.literal_eval(self.goals['opt_sol'].answ)
+            if not check_min_weight(answ, self.I.edges, self.I.n):
+                return SEF.feasibility_NO(answ, f"Il valore ottimo inserito sfora la somma minima possibile di pesi")
+            if not check_max_weight(answ, self.I.edges, self.I.n):
+                return SEF.feasibility_NO(answ, f"Il valore ottimo inserito sfora la somma massima possibile di pesi")
+            SEF.feasibility_OK(answ, f"Come `{self.goals['opt_val'].alias}` hai immesso un sottoinsieme degli oggetti "
+                                     f"dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['opt_val'].alias}`")
+
+        if 'list_opt_sols' in self.goals:
+            answ = ast.literal_eval(self.goals['list_opt_sols'].answ)
+            for tree in answ:
+                if not all(0 <= e < self.I.m for e in tree):
+                    return SEF.feasibility_NO(answ, f"Una delle soluzioni ottime presenta degli archi che non esistono.")
+                if len(tree) != len(set(tree)):
+                    return SEF.feasability_NO(answ, f"Una delle soluzioni ottime presenta degli archi ripetuti.")
+                if not check_tree(tree, self.I.edges):
+                    return SEF.feasability_NO(answ, f"Una delle soluzioni ottime non rappresenta un albero.")
+                if not check_spanning_tree(answ, self.I.n, self.I.edges):
+                    return SEF.feasibility_NO(answ, f"Una delle soluzioni ottima non è uno spanning tree")
+                if len(set(tree).intersection(set(self.I.forbidden_edges))) != 0:
+                    return SEF.feasibility_NO(answ, f"Una delle soluzioni ottime contiene dei forbidden_edges")
+                if len(set(tree).intersection(set(self.I.forced_edges))) != len(self.I.forced_edges):
+                    return SEF.feasibility_NO(answ, f"Una delle soluzioni ottime non contiene tutti i forced_edges")
+            SEF.feasibility_OK(answ, f"Come {self.goals['list_opt_sols'].alias} hai immesso un sottoinsieme degli "
+                                     f"oggetti dell'istanza originale", f"resta da stabilire l'ottimalità di `{self.goals['list_opt_sol'].alias}`")
+
+        if 'num_opt_sols' in self.goals:
+            answ = ast.literal_eval(self.goals['list_opt_sols'].answ)
+            if answ <= 0:
+                return SEF.feasibility_NO(answ, f"Il numero di soluzioni ottime inserito è minore o uguale di 0")
+            if answ > self.I.n ** (self.I.n - 2):
+                return SEF.feasibility_NO(answ, f"In qualsiasi grafo non possono esistere più di n^(n-2) ST")
 
     def verify_consistency(self, SEF):
         if not super().verify_consistency(SEF):
