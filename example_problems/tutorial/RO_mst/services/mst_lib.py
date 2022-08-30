@@ -8,8 +8,7 @@ from RO_verify_submission_gen_prob_lib import verify_submission_gen
 
 instance_objects_spec = {
     ('n', int),
-    ('s', int),
-    ('t', int),
+    ('m', int),
     ('edges', str),
     ('forbidden_edges', str),
     ('forced_edges', str),
@@ -21,10 +20,7 @@ answer_objects_spec = {
     'opt_val': int,
     'num_opt_sols': int,
     'list_opt_sols': str,
-    'edge_profile': str,
-    # 'cyc_cert': str,
-    # 'edgecut_cert': str,
-    # 'cutshore_cert': str,
+    'edge_profile': str
 }
 
 answer_objects_implemented = [
@@ -32,43 +28,40 @@ answer_objects_implemented = [
     'opt_val',
     'num_opt_sols',
     'list_opt_sols',
-    'edge_profile',
-    # 'cyc_cert',
-    # 'edgecut_cert',
-    # 'cutshore_cert',
+    'edge_profile'
 ]
 
 
-def check_isolated_nodes(n, edges):
-    nodes_founded = set()
+def check_isolated_nodes(n: int, edges: list):
+    nodes_found = set()
     for u, v, w in edges:
-        nodes_founded.add(u)
-        nodes_founded.add(v)
-    return len(nodes_founded) != n
+        nodes_found.add(u)
+        nodes_found.add(v)
+    return len(nodes_found) != n
 
 
-def check_isolated_nodes_by_forbidden(n, edges, forbidden_edges):
-    nodes_founded = set()
+def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list):
+    nodes_found = set()
     for i, (u, v, w) in enumerate(edges):
         if i not in forbidden_edges:
-            nodes_founded.add(u)
-            nodes_founded.add(v)
-    return len(nodes_founded) != n
+            nodes_found.add(u)
+            nodes_found.add(v)
+    return len(nodes_found) != n
 
 
-def check_tree(tree: list, edges: list):
-    graph = nx.MultiGraph(len(tree))
+def check_tree(tree: list, n: int, edges: list):
+    graph = nx.MultiGraph(n)
     for i in tree:
-        nodes = list(edges[i][0])
-        graph.add_weighted_edges_from((nodes[0], nodes[1], edges[i][1]))
+        u, v = list(edges[i][0])
+        graph.add_edge(u, v)
     return nx.is_tree(graph)
 
 
-def check_spanning_tree(tree: list, n: int, edges: list):
-    nodes_founded = set()
+def check_spanning(tree: list, n: int, edges: list):
+    nodes_found = set()
     for i in tree:
-        nodes_founded = nodes_founded.union(edges[i][0])
-    return len(nodes_founded) == n
+        nodes_found = nodes_found.union(edges[i][0])
+    return len(nodes_found) == n
 
 
 def check_min_weight(input_weight: list, edges: list, nodes: int):
@@ -83,7 +76,7 @@ def check_max_weight(input_weight: list, edges: list, nodes: int):
     return input_weight <= max_weight
 
 
-def check_instance_consistency(instance):
+def check_instance_consistency(instance: dict):
     print(f"instance={instance}", file=stderr)
     n = instance['n']
     m = instance['m']
@@ -97,36 +90,42 @@ def check_instance_consistency(instance):
     forced_edges = ast.literal_eval(forced_edges)
 
     if n <= 0:
-        print(f"Errore: il numero di nodi è minore o ugauale a 0")
+        print(f"Errore: il numero di nodi è minore o uguale a 0")
+        exit(0)
     if m <= 0:
         print(f"Errore: il numero di archi è minore o uguale a   0")
+        exit(0)
     if m != len(edges):
-        print(f"Errore: il numero di archi non corrisponde con la lista data")
+        print(f"Errore: il numero di archi non corrisponde con il numero di archi della lista data")
         exit(0)
     if not all(w >= 0 for _, _, w in edges):
         print(f"Errore: alcuni pesi sono minori di 0")
-    if not all(0 < u < n and 0 < u < n for u, v, _ in edges):
+    if not all(0 <= u < n and 0 <= v < n for u, v, _ in edges):
         print(f"Errore: alcuni nodi dati negli archi non esistono")
         exit(0)
     if not all(u != v for u, v, _ in edges):
-        print(f"Errore: il grafo non può contenere autoloop")
+        print(f"Errore: il grafo non può contenere auto-loop")
         exit(0)
-    if not all(0 < e < m for e in forbidden_edges):
+    if not all(0 <= e < m for e in forbidden_edges):
         print(f"Errore: alcuni archi dichiarati in forbidden_edges non esistono")
         exit(0)
-    if not all(0 < e < m for e in forced_edges):
+    if not all(0 <= e < m for e in forced_edges):
         print(f"Errore: alcuni archi dichiarati in forced_edges non esistono")
         exit(0)
-    if query_edge < 0 or query_edge >= m:
+    if not 0 <= query_edge < m:
         print(f"Errore: il query_edge non esiste")
         exit(0)
     if query_edge in forbidden_edges:
-        print(f"Errore: il query_edge è nei forbidden_edges")
+        print(f"Errore: il query_edge è nei forbidden_edges, la soluzione può solo che essere in_no")
+        exit(0)
+    if query_edge in forced_edges:
+        print(f"Errore: il query_edge è nei forbidden_edges, la soluzione può solo che essere in_all")
+        exit(0)
     if check_isolated_nodes(n, edges):
-        print(f"Errore: sono presenti dei nodi isolati")
+        print(f"Errore: sono presenti dei nodi isolati, non connessi da archi")
         exit(0)
     if check_isolated_nodes_by_forbidden(n, edges, forbidden_edges):
-        print(f"Errore: sono presenti dei nodi isolati dovuti ad archi eliminati da forbidden_edges")
+        print(f"Errore: sono presenti dei nodi isolati, dovuti ad archi eliminati da forbidden_edges")
         exit(0)
 
 
@@ -230,7 +229,7 @@ class Graph:
         return [first] + self._all_mst(set(first), set(fixed), set(excluded))
 
 
-def solver(input_to_oracle):
+def solver(input_to_oracle: dict):
     instance = input_to_oracle['input_data_assigned']
     n = instance['n']
     m = instance['m']
@@ -283,20 +282,20 @@ class verify_submission_problem_specific(verify_submission_gen):
             if type(g.answ) != str:
                 return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                         f"immettere una stringa di archi. Una lista di archi è data dagli è "
-                                        f"costituita da una lista di inidici riferiti alla lista degli archi "
-                                        f"nell'sitanza del problema")
+                                        f"costituita da una lista di indici riferiti alla lista degli archi "
+                                        f"nell'istanza del problema")
             try:
-                g_eval = ast.literal_eval(g.answ)
-                if type(g_eval) != list:
+                answ = ast.literal_eval(g.answ)
+                if type(answ) != list:
                     return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                             f"immettere una lista di archi. Una lista di archi è costituita da una "
-                                            f"lista di inidici riferiti alla lista degli archi "
-                                            f"nell'sitanza del problema")
-                if not all([isinstance(arch, int) for arch in g_eval]):
+                                            f"lista di indici riferiti alla lista degli archi "
+                                            f"nell'istanza del problema")
+                if not all([isinstance(edge, int) for edge in answ]):
                     return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                             f"immettere una lista di archi. Una lista di archi è costituita da una "
-                                            f"lista di inidici riferiti alla lista degli archi "
-                                            f"nell'sitanza del problema")
+                                            f"lista di indici riferiti alla lista degli archi "
+                                            f"nell'istanza del problema")
             except SyntaxError:
                 return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                         f"immettere una lista di archi. Impossibile effettuare il parsing dell'input: "
@@ -328,26 +327,26 @@ class verify_submission_problem_specific(verify_submission_gen):
             if type(g.answ) != str:
                 return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                         f"immettere una stringa di archi. Una lista di archi è data dagli è "
-                                        f"costituita da una lista di inidici riferiti alla lista degli archi "
-                                        f"nell'sitanza del problema")
+                                        f"costituita da una lista di indici riferiti alla lista degli archi "
+                                        f"nell'istanza del problema")
             try:
-                g_eval = ast.literal_eval(g.answ)
-                if type(g_eval) != list:
+                answ = ast.literal_eval(g.answ)
+                if type(answ) != list:
                     return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                             f"immettere una lista di archi. Una lista di archi è costituita da una "
-                                            f"lista di inidici riferiti alla lista degli archi "
-                                            f"nell'sitanza del problema")
-                if not all([isinstance(graph, list) for graph in g_eval]):
+                                            f"lista di indici riferiti alla lista degli archi "
+                                            f"nell'istanza del problema")
+                if not all([isinstance(tree, list) for tree in answ]):
                     return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                             f"immettere una lista di archi. Una lista di archi è costituita da una "
-                                            f"lista di inidici riferiti alla lista degli archi "
-                                            f"nell'sitanza del problema")
-                for tree in g_eval:
-                    if not all([isinstance(arch, int) for arch in tree]):
+                                            f"lista di indici riferiti alla lista degli archi "
+                                            f"nell'istanza del problema")
+                for tree in answ:
+                    if not all([isinstance(edge, int) for edge in tree]):
                         return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                                 f"immettere una lista di archi. Una lista di archi è costituita da una "
-                                                f"lista di inidici (interi) riferiti alla lista degli archi "
-                                                f"nell'sitanza del problema")
+                                                f"lista di indici (interi) riferiti alla lista degli archi "
+                                                f"nell'istanza del problema")
             except SyntaxError:
                 return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
                                         f"immettere una lista di archi. Impossibile effettuare il parsing dell'input: "
@@ -367,6 +366,7 @@ class verify_submission_problem_specific(verify_submission_gen):
             SEF.format_OK(g, f"come '{g.alias}' hai immesso una stringa come richiesto",
                           f"ovviamente durante lo svolgimento dell'esame non posso dirti se la stringa inserita sia "
                           f"poi la risposta corretta, ma il formato è corretto")
+
         return True
 
     def verify_feasibility(self, SEF):
@@ -376,54 +376,60 @@ class verify_submission_problem_specific(verify_submission_gen):
         if 'opt_sol' in self.goals:
             g = self.goals['opt_sol']
             answ = ast.literal_eval(g.answ)
+            edges = ast.literal_eval(self.I.edges)
+            forbidden_edges = ast.literal_eval(self.I.forbidden_edges)
+            forced_edges = ast.literal_eval(self.I.forced_edges)
             if not all(0 <= e < self.I.m for e in answ):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti archi che non esistono")
             if len(answ) != len(set(answ)):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti degli archi ripetuti.")
-            if not check_tree(answ, self.I.edges):
+            if not check_tree(answ, edges, self.I.n):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso non rappresenta un albero")
-            if not check_spanning_tree(answ, self.I.n, self.I.edges):
+            if not check_spanning(answ, self.I.n, edges):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso non rappresenta uno spanning tree")
-            if len(set(answ).intersection(set(self.I.forbidden_edges))) != 0:
+            if len(set(answ).intersection(set(forbidden_edges))) != 0:
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti dei forbidden_edges")
-            if len(set(answ).intersection(set(self.I.forced_edges))) != len(self.I.forced_edges):
+            if len(set(answ).intersection(set(forced_edges))) != len(forced_edges):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno non sono presenti tutti i forced_edges")
             SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
 
         if 'opt_val' in self.goals:
             g = self.goals['opt_val']
             answ = g.answ
-            if not check_min_weight(answ, self.I.edges, self.I.n):
+            edges = ast.literal_eval(self.I.edges)
+            if not check_min_weight(answ, edges, self.I.n):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma minima possibile dei pesi")
-            if not check_max_weight(answ, self.I.edges, self.I.n):
+            if not check_max_weight(answ, edges, self.I.n):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma massima possibile dei pesi")
             SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
 
         if 'list_opt_sols' in self.goals:
             g = self.goals['list_opt_sols']
             answ = ast.literal_eval(g.answ)
+            edges = ast.literal_eval(self.I.edges)
+            forbidden_edges = ast.literal_eval(self.I.forbidden_edges)
+            forced_edges = ast.literal_eval(self.I.forced_edges)
             for tree in answ:
                 if not all(0 <= e < self.I.m for e in tree):
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse presentano degli archi che non esistono.")
                 if len(tree) != len(set(tree)):
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse presentano degli archi ripetuti.")
-                if not check_tree(tree, self.I.edges):
+                if not check_tree(tree, edges, self.I.n):
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse non rappresentano un albero")
-                if not check_spanning_tree(answ, self.I.n, self.I.edges):
+                if not check_spanning(answ, self.I.n, edges):
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse non rappresentano uno spanning tree")
-                if len(set(tree).intersection(set(self.I.forbidden_edges))) != 0:
+                if len(set(tree).intersection(set(forbidden_edges))) != 0:
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse contengono dei forbidden_edges")
-                if len(set(tree).intersection(set(self.I.forced_edges))) != len(self.I.forced_edges):
+                if len(set(tree).intersection(set(forced_edges))) != len(forced_edges):
                     return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma alcune di esse non contengono tutti i forced_edges")
             SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
 
         if 'num_opt_sols' in self.goals:
             g = self.goals['num_opt_sols']
-            answ = g.answ
-            if answ <= 0:
+            if g.answ <= 0:
                 return SEF.feasibility_NO(g, f"Come '{g.alias} hai immesso '{g.answ}', ma il numero di soluzioni ottime deve essere maggiore di 0")
-            if answ > self.I.n ** (self.I.n - 2):
-                return SEF.feasibility_NO(g, f"Come '{g.alias} hai immesso '{g.answ}', ma in qualsiasi grafo non possono esistere più di n^(n-2) spannin trees, dove n è il numero di archi")
+            if g.answ > self.I.n ** (self.I.n - 2):
+                return SEF.feasibility_NO(g, f"Come '{g.alias} hai immesso '{g.answ}', ma in qualsiasi grafo non possono esistere più di n^(n-2) spanning trees, dove n è il numero di archi")
             SEF.feasibility_OK(g, f"Come {g.alias} hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di `{g.alias}`")
 
         return True
@@ -436,8 +442,7 @@ class verify_submission_problem_specific(verify_submission_gen):
             opt_sol_g = self.goals['opt_sol']
             opt_val_g = self.goals['opt_val']
             opt_sol_answ = ast.literal_eval(opt_sol_g.answ)
-            opt_val_answ = opt_val_g.answ
-            if sum([self.I.edges[i][1] for i in opt_sol_answ]) != opt_val_answ:
+            if sum([self.I.edges[i][1] for i in opt_sol_answ]) != opt_val_g.answ:
                 return SEF.consistency_NO(['opt_val', 'opt_sol'], f"Il peso totale di '{opt_sol_g.alias}' e il valore '{opt_val_g.alias}' non corrispondono")
             SEF.consistency_OK(['opt_sol', 'opt_val'], f"Il peso totale di '{opt_sol_g.alias}' e il valore '{opt_val_g.alias}' corrispondono", f"Ora resta da verificare l'ottimalità")
 
@@ -446,18 +451,25 @@ class verify_submission_problem_specific(verify_submission_gen):
             answ = ast.literal_eval(g.answ)
             sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in answ]
             if len(set(sols_weights)) != 1:
-                return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzoni in '{g.alias}' hanno lo stesso peso")
+                return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzioni in '{g.alias}' hanno lo stesso peso")
             SEF.consistency_OK(['list_opt_sols'], f"Tutte le soluzioni in '{self.goals}'", f"Ora resta da verificare l'ottimalità")
+
+        if 'list_opt_sols' in self.goals and 'num_opt_sols' in self.goals:
+            list_opt_sols_g = self.goals['opt_sol']
+            num_opt_sols_g = self.goals['opt_val']
+            list_opt_sols_answ = ast.literal_eval(list_opt_sols_g.answ)
+            if num_opt_sols_g.answ != len(list_opt_sols_answ):
+                return SEF.consistency_NO(['list_opt_sols', 'num_opt_sols'], f"Come '{list_opt_sols_g.alias}' hai inserito '{list_opt_sols_g.answ}', ma essa presenta un numero di soluzioni diverso dal valore '{num_opt_sols_g.alias}' immesso")
+            SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il numero di soluzioni di '{list_opt_sols_g.alias}' corrisponde con il valore '{num_opt_sols_g.alias}'", f"Ora resta da verificare l'ottimalità")
 
         if 'list_opt_sols' in self.goals and 'opt_val' in self.goals:
             list_opt_sols_g = self.goals['opt_sol']
             opt_val_g = self.goals['opt_val']
             list_opt_sols_answ = ast.literal_eval(list_opt_sols_g.answ)
-            opt_val_answ = opt_val_g.answ
             sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in list_opt_sols_answ]
-            if not all(weight == opt_val_answ for weight in sols_weights):
+            if not all(weight == opt_val_g.answ for weight in sols_weights):
                 return SEF.consistency_NO(['list_opt_sols', 'opt_val'], f"Il peso totale di alcune delle soluzioni in '{list_opt_sols_g.alias}' e il valore '{opt_val_g.alias}' non corrispondono")
-            SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il peso totale di ogni soluzione in '{list_opt_sols_g.alias}' corrispnde con il valore '{opt_val_g.alias}'", f"Ora resta da verificare l'ottimalità")
+            SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il peso totale di ogni soluzione in '{list_opt_sols_g.alias}' corrisponde con il valore '{opt_val_g.alias}'", f"Ora resta da verificare l'ottimalità")
 
         return True
 
@@ -467,44 +479,41 @@ class verify_submission_problem_specific(verify_submission_gen):
 
         if 'opt_val' in self.goals:
             g = self.goals['opt_val']
-            answ = g.answ
             true_answ = SEF.oracle_dict['opt_val']
-            if answ != true_answ:
-                return SEF.optimality_NO(g, f"Il valore ottimo corretto è {true_answ} {'>' if true_answ > answ else '<'} {answ}, che è il valore invece immesso in '{g.alias}'.")
-            SEF.optimality_OK(g, f"{g.alias}={true_answ} è effettivamente il valore ottimo.", "")
+            if g.answ != true_answ:
+                return SEF.optimality_NO(g, f"Come '{g.alias}' ha inserito '{g.answ}', tuttavia esso non è il valore minimo possibile.")
+            SEF.optimality_OK(g, f"{g.alias} = {true_answ} è effettivamente il valore ottimo.", "")
 
         if 'opt_sol' in self.goals:
             g = self.goals['opt_sol']
             answ = ast.literal_eval(g.answ)
             list_opt_sols = sum([set(tree) for tree in SEF.oracle_dict['opt_sol']])
             if set(answ) not in list_opt_sols:
-                return SEF.optimality_NO(g, f"La soluzione inserita {answ} non è tra le soluzioni ottime")
-            SEF.optimality_OK(g, f"{answ} è effetivamente una possibile soluzione ottima", "")
+                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma essa non è tra le soluzioni ottime")
+            SEF.optimality_OK(g, f"{g.alias} = {g.answ} é effettivamente una possibile soluzione ottima", "")
 
         if 'num_opt_sols' in self.goals:
             g = self.goals['num_opt_sols']
-            answ = g.answ
             true_answ = SEF.oracle_dict['num_opt_sols']
-            if answ != true_answ:
-                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{answ}', ma questo non corrisponde al numero di soluzioni ottime corretto")
-            SEF.optimality_OK(g, f"{answ} è effetivamente il numero corretto di soluzioni ottime", "")
+            if g.answ != true_answ:
+                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma questo non corrisponde al numero di soluzioni ottime corretto")
+            SEF.optimality_OK(g, f"{g.alias} = {g.answ} è effettivamente il numero corretto di soluzioni ottime", "")
 
         if 'list_opt_sols' in self.goals:
             g = self.goals['list_opt_sols']
             answ = [set(tree) for tree in ast.literal_eval(g.answ)]
             true_answ = [set(tree) for tree in SEF.oracle_dict['list_opt_sols']]
             if not all(tree in true_answ for tree in answ):
-                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{answ}', ma non tutte le soluzioni sono ottimali")
+                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma non tutte le soluzioni sono ottimali")
             if len(answ) < len(true_answ):
-                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{answ}', ma mancano alcune soluzioni")
-            SEF.optimality_OK(g, f"{answ} è effittivamente la lista completa di soluzioni ottime", "")
+                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma mancano alcune soluzioni")
+            SEF.optimality_OK(g, f"{g.alias} = {g.answ} è effettivamente la lista completa di soluzioni ottime", "")
 
         if 'edge_profile' in self.goals:
             g = self.goals['edge_profile']
-            answ = g.answ
             true_answ = SEF.oracle_dict['edge_profile']
-            if answ != true_answ:
-                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{answ}', ma la risposta non risulta corretta")
-            SEF.optimality_OK(g, f"{answ} è effettivamente la risposta corretta per l'arco richiesto", "")
+            if g.answ != true_answ:
+                return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma la risposta non risulta corretta")
+            SEF.optimality_OK(g, f"{g.alias} = {g.answ} è effettivamente la risposta corretta per l'arco richiesto", "")
 
         return True
