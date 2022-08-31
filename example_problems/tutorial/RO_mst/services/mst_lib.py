@@ -150,21 +150,17 @@ class Graph:
             rank[x_root] += 1
 
     def kruskal_constrained(self, forced: list, excluded: list) -> (list, int):
-        result = []
-        tot_weight = 0.0
-        i, e = 0, 0
+        mst = []
+        i, e, tot_weight = 0, 0, 0.0
         self.edges = sorted(self.edges, key=lambda item: item[2])
-        parent = []
-        rank = []
-        for node in range(self.V):
-            parent.append(node)
-            rank.append(0)
+        parent = list(range(self.V))
+        rank = [0] * self.V
         for u, v, weight, label in self.edges:
             x = self._search(parent, u)
             y = self._search(parent, v)
             if label in forced:
                 e += 1
-                result.append(label)
+                mst.append(label)
                 tot_weight += weight
                 self._apply_union(parent, rank, x, y)
         while e < self.V - 1:
@@ -174,10 +170,10 @@ class Graph:
             y = self._search(parent, v)
             if x != y and label not in excluded and label not in forced:
                 e += 1
-                result.append(label)
+                mst.append(label)
                 tot_weight += weight
                 self._apply_union(parent, rank, x, y)
-        return result, tot_weight
+        return mst, tot_weight
 
     def _find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
