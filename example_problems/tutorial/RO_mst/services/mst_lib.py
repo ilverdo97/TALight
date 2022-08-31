@@ -130,49 +130,49 @@ class Graph:
         self.edges = []
         self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
-    def add_edge(self, u: int, v: int, weight: float, label: int):
+    def add_edge(self, u: int, v: int, weight: float, label: int) -> None:
         self.edges.append((u, v, weight, label))
         self.adjacency[u][v].append({'weight': weight, 'label': label})
         self.adjacency[v][u].append({'weight': weight, 'label': label})
 
-    def _search(self, parent: list, i: int):
-        return i if parent[i] == i else self._search(parent, parent[i])
+    def _search_root(self, parent: list, i: int) -> int:
+        return i if parent[i] == i else self._search_root(parent, parent[i])
 
-    def _apply_union(self, parent: list, rank: list, x: int, y: int):
-        x_root = self._search(parent, x)
-        y_root = self._search(parent, y)
-        if rank[x_root] < rank[y_root]:
-            parent[x_root] = y_root
-        elif rank[x_root] > rank[y_root]:
-            parent[y_root] = x_root
+    def _apply_union(self, parent: list, rank: list, u: int, v: int):
+        u_root = self._search_root(parent, u)
+        v_root = self._search_root(parent, v)
+        if rank[u_root] < rank[v_root]:
+            parent[u_root] = v_root
+        elif rank[u_root] > rank[v_root]:
+            parent[v_root] = u_root
         else:
-            parent[y_root] = x_root
-            rank[x_root] += 1
+            parent[v_root] = u_root
+            rank[u_root] += 1
 
     def kruskal_constrained(self, forced: list, excluded: list) -> (list, int):
         mst = []
-        i, e, tot_weight = 0, 0, 0.0
+        i, e, tot_weight = 0, 0, 0
         self.edges = sorted(self.edges, key=lambda item: item[2])
         parent = list(range(self.V))
         rank = [0] * self.V
         for u, v, weight, label in self.edges:
-            x = self._search(parent, u)
-            y = self._search(parent, v)
+            u_root = self._search_root(parent, u)
+            v_root = self._search_root(parent, v)
             if label in forced:
                 e += 1
                 mst.append(label)
                 tot_weight += weight
-                self._apply_union(parent, rank, x, y)
+                self._apply_union(parent, rank, u_root, v_root)
         while e < self.V - 1:
             u, v, weight, label = self.edges[i]
             i += 1
-            x = self._search(parent, u)
-            y = self._search(parent, v)
-            if x != y and label not in excluded and label not in forced:
+            u_root = self._search_root(parent, u)
+            v_root = self._search_root(parent, v)
+            if u_root != v_root and label not in excluded and label not in forced:
                 e += 1
                 mst.append(label)
                 tot_weight += weight
-                self._apply_union(parent, rank, x, y)
+                self._apply_union(parent, rank, u_root, v_root)
         return mst, tot_weight
 
     def _find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
