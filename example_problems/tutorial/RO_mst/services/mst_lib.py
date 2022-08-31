@@ -32,7 +32,7 @@ answer_objects_implemented = [
 ]
 
 
-def check_isolated_nodes(n: int, edges: list):
+def check_isolated_nodes(n: int, edges: list) -> bool:
     nodes_found = set()
     for u, v, w in edges:
         nodes_found.add(u)
@@ -40,7 +40,7 @@ def check_isolated_nodes(n: int, edges: list):
     return len(nodes_found) != n
 
 
-def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list):
+def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list) -> bool:
     nodes_found = set()
     for i, (u, v, w) in enumerate(edges):
         if i not in forbidden_edges:
@@ -49,7 +49,7 @@ def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list
     return len(nodes_found) != n
 
 
-def check_tree(tree: list, n: int, edges: list):
+def check_tree(tree: list, n: int, edges: list) -> bool:
     graph = nx.MultiGraph(n)
     for i in tree:
         u, v = list(edges[i][0])
@@ -57,23 +57,18 @@ def check_tree(tree: list, n: int, edges: list):
     return nx.is_tree(graph)
 
 
-def check_spanning(tree: list, n: int, edges: list):
+def check_spanning(tree: list, n: int, edges: list) -> bool:
     nodes_found = set()
     for i in tree:
         nodes_found = nodes_found.union(edges[i][0])
     return len(nodes_found) == n
 
 
-def check_min_weight(input_weight: list, edges: list, nodes: int):
+def check_weight_in_range(input_weight: float, edges: list, nodes: int) -> int:
     weights = sorted([w for _, w in edges])
     min_weight = sum(weights[:nodes - 1])
-    return input_weight >= min_weight
-
-
-def check_max_weight(input_weight: list, edges: list, nodes: int):
-    weights = sorted([w for _, w in edges], reverse=True)
-    max_weight = sum(weights[:nodes - 1])
-    return input_weight <= max_weight
+    max_weight = sum(weights[-(nodes-1):])
+    return -1 if input_weight < min_weight else 1 if input_weight > max_weight else 0
 
 
 def check_instance_consistency(instance: dict):
@@ -135,10 +130,10 @@ class Graph:
         self.edges = []
         self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
-    def add_edge(self, u: int, v: int, w: float, l: int):
-        self.edges.append((u, v, w, l))
-        self.adjacency[u][v].append({'weight': w, 'label': l})
-        self.adjacency[v][u].append({'weight': w, 'label': l})
+    def add_edge(self, u: int, v: int, weight: float, label: int):
+        self.edges.append((u, v, weight, label))
+        self.adjacency[u][v].append({'weight': weight, 'label': label})
+        self.adjacency[v][u].append({'weight': weight, 'label': label})
 
     def _search(self, parent: list, i: int):
         return i if parent[i] == i else self._search(parent, parent[i])
@@ -154,9 +149,9 @@ class Graph:
             parent[y_root] = x_root
             rank[x_root] += 1
 
-    def kruskal_constrained(self, fixed: list, excluded: list):
+    def kruskal_constrained(self, forced: list, excluded: list) -> (list, int):
         result = []
-        tot_w = 0
+        tot_weight = 0.0
         i, e = 0, 0
         self.edges = sorted(self.edges, key=lambda item: item[2])
         parent = []
@@ -164,72 +159,70 @@ class Graph:
         for node in range(self.V):
             parent.append(node)
             rank.append(0)
-        for u, v, w, l in self.edges:
+        for u, v, weight, label in self.edges:
             x = self._search(parent, u)
             y = self._search(parent, v)
-            if l in fixed:
+            if label in forced:
                 e += 1
-                result.append(l)
-                tot_w += w
+                result.append(label)
+                tot_weight += weight
                 self._apply_union(parent, rank, x, y)
         while e < self.V - 1:
-            u, v, w, l = self.edges[i]
+            u, v, weight, label = self.edges[i]
             i += 1
             x = self._search(parent, u)
             y = self._search(parent, v)
-            if x != y and l not in excluded and l not in fixed:
+            if x != y and label not in excluded and label not in forced:
                 e += 1
-                result.append(l)
-                tot_w += w
+                result.append(label)
+                tot_weight += weight
                 self._apply_union(parent, rank, x, y)
-        return result, tot_w
+        return result, tot_weight
 
-    def _find_substitute(self, cut: int, tree: set, excluded: set):
+    def _find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        V1 = {cut_u}
+        partition = {cut_u}
         tmp_list = [cut_u]
 
         while tmp_list:
             u = tmp_list.pop()
             for v in range(self.V):
                 for edge in self.adjacency[u][v]:
-                    if edge['label'] in tree and edge['label'] != cut_l and v not in V1:
+                    if edge['label'] in tree and edge['label'] != cut_l and v not in partition:
                         tmp_list.append(v)
-                        V1.add(v)
+                        partition.add(v)
                         break
 
-        V2 = set(range(self.V)).difference(V1)
-
-        for u, v, w, l in self.edges:
-            if l != cut_l and \
-                    l not in tree and \
-                    l not in excluded and \
-                    ((u in V1 and v in V2) or (u in V2 and v in V1)) and \
-                    w == cut_w:
-                return l
+        for u, v, weight, label in self.edges:
+            if label != cut_l and \
+                    label not in tree and \
+                    label not in excluded and \
+                    (u in partition ^ v in partition) and \
+                    weight == cut_w:
+                return label
         return None
 
-    def _all_mst(self, tree: set, fixed: set, excluded: set):
-        search_set = tree.difference(fixed)
+    def _all_mst(self, tree: set, forced: set, excluded: set) -> list:
+        search_set = tree.difference(forced)
         msts = []
-        for e in search_set:
-            sub = self._find_substitute(e, tree, excluded)
+        for edge in search_set:
+            sub = self._find_substitute(edge, tree, excluded)
             if sub is not None:
                 new_tree = tree
-                new_tree.remove(e)
+                new_tree.remove(edge)
                 new_tree.add(sub)
                 msts.append(list(new_tree))
-                others = self._all_mst(new_tree, fixed, excluded.union({e}))
+                others = self._all_mst(new_tree, forced, excluded.union({edge}))
                 if others:
                     msts += others
         return msts
 
-    def all_mst(self, fixed: list, excluded: list):
-        first, _ = self.kruskal_constrained(fixed, excluded)
-        return [first] + self._all_mst(set(first), set(fixed), set(excluded))
+    def all_mst(self, forced: list, excluded: list) -> list:
+        first, _ = self.kruskal_constrained(forced, excluded)
+        return [first] + self._all_mst(set(first), set(forced), set(excluded))
 
 
-def solver(input_to_oracle: dict):
+def solver(input_to_oracle: dict) -> dict:
     instance = input_to_oracle['input_data_assigned']
     n = instance['n']
     m = instance['m']
@@ -242,9 +235,10 @@ def solver(input_to_oracle: dict):
     forbidden_edges = ast.literal_eval(forbidden_edges)
     forced_edges = ast.literal_eval(forced_edges)
     graph = Graph(n)
-    for l, e in enumerate(edges):
-        u, v = list(e[0])
-        graph.add_edge(u, v, e[1], l)
+    for label, edge in enumerate(edges):
+        u, v = list(edge[0])
+        weight = float(edge[1])
+        graph.add_edge(u, v, weight, label)
 
     opt_sol, opt_val = graph.kruskal_constrained(forced_edges, forbidden_edges)
     list_opt_sols = graph.all_mst(forced_edges, forbidden_edges)
@@ -397,10 +391,8 @@ class verify_submission_problem_specific(verify_submission_gen):
             g = self.goals['opt_val']
             answ = g.answ
             edges = ast.literal_eval(self.I.edges)
-            if not check_min_weight(answ, edges, self.I.n):
-                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma minima possibile dei pesi")
-            if not check_max_weight(answ, edges, self.I.n):
-                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma massima possibile dei pesi")
+            if (res := check_weight_in_range(answ, edges, self.I.n)) != 0:
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma {'minima' if res < 0 else 'massima'} possibile dei pesi")
             SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
 
         if 'list_opt_sols' in self.goals:
