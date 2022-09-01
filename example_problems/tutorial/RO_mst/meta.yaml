@@ -60,7 +60,7 @@ services:
       num_opt_sols:
         regex: ^(.*)$
         default: 2
-        explain: il numero di soluzioni ottime differenti
+        explain:  "il numero di soluzioni ottime differenti"
         example1: "2 è la risposta corretta per il Caso d'Esempio 1 (tutti i valori al loro default)"
         example2: "1 è la risposta corretta per il Caso d'Esempio 2 (dove un arco è proibito)"
       list_opt_sols:
@@ -172,14 +172,14 @@ services:
       forbidden_edges:
         regex: ^(.*)$
         default: "[]"
-        explain: ci interessano gli MST tenuti ad evitare questi archi
-        example1: Il primo esempio corrisponde ai valori di dafault, dove nessun arco è proibito.
+        explain: "ci interessano gli MST tenuti ad evitare questi archi"
+        example1: "Il primo esempio corrisponde ai valori di dafault, dove nessun arco è proibito."
         example2: "Come secondo esempio, si consideri `forbidden_edges=[0]` dove e0=v0-v1 è il solo arco proibito."
       forced_edges:
         regex: ^(.*)$
         default: "[]"
-        explain: ci interessano gli MST tenuti ad includere questi archi
-        example1: Il primo esempio corrisponde ai valori di dafault, dove nessun arco è obbligato.
+        explain: "ci interessano gli MST tenuti ad includere questi archi"
+        example1: "Il primo esempio corrisponde ai valori di dafault, dove nessun arco è obbligato."
         example2: "Come secondo esempio, si consideri `forbidden_edges=[1]` dove e1=v0-v2 è il solo arco obbligato."
       query_edge:
         regex: ^(0|[1-9][0-9]*)$
@@ -202,7 +202,7 @@ services:
         explain2: '[opt_val] il minimo costo di una soluzione ammissibile (=somma dei costi degli archi inclusi nella soluzione)'
         explain3: '[num_opt_sols] il numero di soluzioni ottime differenti'
         explain4: '[list_opt_sols] la lista di tutte le soluzioni ottime (in qualsiasi ordine)'
-        explain5: "[edge_profile] analisi se l'oracle_edge appartenga a tutte, oppure nessuna, oppure alcune ma non tutte le soluzioni ottime, coi relativi certificati di ciclo o di taglio (il certificato di taglio viene fornito sia come insieme di archi che come l'insieme di nodi nella shore più piccola)"
+        explain5: "[edge_profile] analisi se l'query_edge appartenga a tutte, oppure nessuna, oppure alcune ma non tutte le soluzioni ottime, coi relativi certificati di ciclo o di taglio (il certificato di taglio viene fornito sia come insieme di archi che come l'insieme di nodi nella shore più piccola)"
         example1: "-a request_dict=\"{'opt_sol': 'opt_sol', 'opt_val': 'opt_val'}\""
         example2: "-a request_dict=\"{'opt_sol': 'opt_sol1', 'opt_val': 'opt_val1'}\""
         example3: "se lasci il valore di default (il dizionario vuoto {}) allora ottieni risposta a tutte le possibili domande per cui un solutore è già stato implementato. In tale caso i nomi impiegati nel responso dell'oracolo saranno quelli standard, come quelli nell'Esempio 1"
@@ -240,7 +240,7 @@ services:
       service:
         regex: ^(synopsis|check|oracle|[a-zA-Z0-9_]+)$
         default: synopsis
-        explain: any string without space characters but meant to specify one of the services of the problem %(problem)s
+        explain: "any string without space characters but meant to specify one of the services of the problem %(problem)s"
       metafile:
         regex: ^(default|en|it|[a-zA-Z0-9_]+)$
         default: default

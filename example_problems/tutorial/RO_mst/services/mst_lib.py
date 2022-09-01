@@ -6,21 +6,21 @@ from typing import Dict
 
 from RO_verify_submission_gen_prob_lib import verify_submission_gen
 
-instance_objects_spec = {
-    ('n', int),
-    ('m', int),
-    ('edges', str),
-    ('forbidden_edges', str),
-    ('forced_edges', str),
-    ('query_edge', str),
+instance_objects_spec = { #specifiche istanza problema
+    ('n', int), #nodi
+    ('m', int), #archi
+    ('edges', str), #lista archi
+    ('forbidden_edges', str), #lista archi da evitare
+    ('forced_edges', str), #lsta archi che devono essere presenti
+    ('query_edge', str), #indice di un arco
 }
 
 answer_objects_spec = {
-    'opt_sol': str,
-    'opt_val': int,
-    'num_opt_sols': int,
-    'list_opt_sols': str,
-    'edge_profile': str
+    'opt_sol': str, #soluzione ottimale mst
+    'opt_val': int, #valore ottimale (peso di qeusta sol ottimale)
+    'num_opt_sols': int, #numero di solutzione ottime
+    'list_opt_sols': str, #lista soluzioni ottime
+    'edge_profile': str #rispondere alle 3 question: tutte, nessuna, alcune
 }
 
 answer_objects_implemented = [
@@ -71,7 +71,7 @@ def check_weight_in_range(input_weight: float, edges: list, nodes: int) -> int:
     return -1 if input_weight < min_weight else 1 if input_weight > max_weight else 0
 
 
-def check_instance_consistency(instance: dict):
+def check_instance_consistency(instance: dict): #se l'istanza del proff ha senso oppure no
     print(f"instance={instance}", file=stderr)
     n = instance['n']
     m = instance['m']
@@ -124,21 +124,21 @@ def check_instance_consistency(instance: dict):
         exit(0)
 
 
-class Graph:
-    def __init__(self, vertices: int):
+class Graph: #descrivere struttura del grafo.
+    def __init__(self, vertices: int): #info salvate n°vertici, lista archi, matrice di adiacenza
         self.V = vertices
         self.edges = []
         self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
-    def add_edge(self, u: int, v: int, weight: float, label: int) -> None:
-        self.edges.append((u, v, weight, label))
+    def add_edge(self, u: int, v: int, weight: float, label: int) -> None: #aggiungiamo arco per volta
+        self.edges.append((u, v, weight, label)) #label=indice lista archi all'inizio
         self.adjacency[u][v].append({'weight': weight, 'label': label})
         self.adjacency[v][u].append({'weight': weight, 'label': label})
 
-    def _search_root(self, parent: list, i: int) -> int:
+    def _search_root(self, parent: list, i: int) -> int: #qual'è la radice del suo albero
         return i if parent[i] == i else self._search_root(parent, parent[i])
 
-    def _apply_union(self, parent: list, rank: list, u: int, v: int):
+    def _apply_union(self, parent: list, rank: list, u: int, v: int): #unisce i sotto-alberi
         u_root = self._search_root(parent, u)
         v_root = self._search_root(parent, v)
         if rank[u_root] < rank[v_root]:
@@ -149,14 +149,14 @@ class Graph:
             parent[v_root] = u_root
             rank[u_root] += 1
 
-    def kruskal_constrained(self, forced: list, excluded: list) -> (list, int):
+    def kruskal_constrained(self, forced: list, excluded: list) -> (list, int): #crea una soluzione ottimale
         mst = []
         i, e, tot_weight = 0, 0, 0
         self.edges = sorted(self.edges, key=lambda item: item[2])
         parent = list(range(self.V))
         rank = [0] * self.V
         for u, v, weight, label in self.edges:
-            u_root = self._search_root(parent, u)
+            u_root = self._search_root(parent, u) #di che sottoalbero fa parte
             v_root = self._search_root(parent, v)
             if label in forced:
                 e += 1
@@ -168,17 +168,17 @@ class Graph:
             i += 1
             u_root = self._search_root(parent, u)
             v_root = self._search_root(parent, v)
-            if u_root != v_root and label not in excluded and label not in forced:
+            if u_root != v_root and label not in excluded and label not in forced: #controlla che nodi non sia esclusi
                 e += 1
                 mst.append(label)
                 tot_weight += weight
                 self._apply_union(parent, rank, u_root, v_root)
-        return mst, tot_weight
+        return mst, tot_weight #ritorno lista indice archi es.([0, 2]), peso totale
 
     def _find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        partition = {cut_u}
-        tmp_list = [cut_u]
+        partition = {cut_u} #subtree
+        tmp_list = [cut_u] #nodi da esplorare
 
         while tmp_list:
             u = tmp_list.pop()
@@ -194,8 +194,8 @@ class Graph:
                     label not in tree and \
                     label not in excluded and \
                     (u in partition ^ v in partition) and \
-                    weight == cut_w:
-                return label
+                    weight == cut_w:                               #u e v fanno parte di due partizioni diverse, con lo xor vado a controllare che il nodo
+                return label                                       # u e v non facciano parte della stessa partizione perche non va bene
         return None
 
     def _all_mst(self, tree: set, forced: set, excluded: set) -> list:
@@ -213,7 +213,7 @@ class Graph:
                     msts += others
         return msts
 
-    def all_mst(self, forced: list, excluded: list) -> list:
+    def all_mst(self, forced: list, excluded: list) -> list: #trova tutti gli mst
         first, _ = self.kruskal_constrained(forced, excluded)
         return [first] + self._all_mst(set(first), set(forced), set(excluded))
 
@@ -259,11 +259,11 @@ def solver(input_to_oracle: dict) -> dict:
     return oracle_answers
 
 
-class verify_submission_problem_specific(verify_submission_gen):
+class verify_submission_problem_specific(verify_submission_gen): #verifica soluzioni sottoposte dall'utente
     def __init__(self, SEF, input_data_assigned: Dict, long_answer_dict: Dict, oracle_response: Dict = None):
         super().__init__(SEF, input_data_assigned, long_answer_dict, oracle_response)
 
-    def verify_format(self, SEF):
+    def verify_format(self, SEF): #formato risposta
         if not super().verify_format(SEF):
             return False
 
@@ -359,14 +359,14 @@ class verify_submission_problem_specific(verify_submission_gen):
 
         return True
 
-    def verify_feasibility(self, SEF):
+    def verify_feasibility(self, SEF): #verificare che quello che l'utente ha inserito sia sensato rispetto all'istanza del problema
         if not super().verify_feasibility(SEF):
             return False
 
         if 'opt_sol' in self.goals:
             g = self.goals['opt_sol']
-            answ = ast.literal_eval(g.answ)
-            edges = ast.literal_eval(self.I.edges)
+            answ = ast.literal_eval(g.answ) #risposta utente
+            edges = ast.literal_eval(self.I.edges) #istanza problame in self.I
             forbidden_edges = ast.literal_eval(self.I.forbidden_edges)
             forced_edges = ast.literal_eval(self.I.forced_edges)
             if not all(0 <= e < self.I.m for e in answ):
@@ -385,9 +385,8 @@ class verify_submission_problem_specific(verify_submission_gen):
 
         if 'opt_val' in self.goals:
             g = self.goals['opt_val']
-            answ = g.answ
             edges = ast.literal_eval(self.I.edges)
-            if (res := check_weight_in_range(answ, edges, self.I.n)) != 0:
+            if (res := check_weight_in_range(g.answ, edges, self.I.n)) != 0:
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma esso sfora la somma {'minima' if res < 0 else 'massima'} possibile dei pesi")
             SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
 
@@ -422,7 +421,7 @@ class verify_submission_problem_specific(verify_submission_gen):
 
         return True
 
-    def verify_consistency(self, SEF):
+    def verify_consistency(self, SEF): #verificare che l'utente sia consistente con se stesso rispetto a quello che inserisce lui
         if not super().verify_consistency(SEF):
             return False
 
@@ -430,7 +429,7 @@ class verify_submission_problem_specific(verify_submission_gen):
             opt_sol_g = self.goals['opt_sol']
             opt_val_g = self.goals['opt_val']
             opt_sol_answ = ast.literal_eval(opt_sol_g.answ)
-            if sum([self.I.edges[i][1] for i in opt_sol_answ]) != opt_val_g.answ:
+            if sum([self.I.edges[i][1] for i in opt_sol_answ]) != opt_val_g.answ: #soluzione ottimale corrisponde come peso al valore ottimale
                 return SEF.consistency_NO(['opt_val', 'opt_sol'], f"Il peso totale di '{opt_sol_g.alias}' e il valore '{opt_val_g.alias}' non corrispondono")
             SEF.consistency_OK(['opt_sol', 'opt_val'], f"Il peso totale di '{opt_sol_g.alias}' e il valore '{opt_val_g.alias}' corrispondono", f"Ora resta da verificare l'ottimalità")
 
@@ -441,20 +440,20 @@ class verify_submission_problem_specific(verify_submission_gen):
             if len(set(sols_weights)) != 1:
                 return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzioni in '{g.alias}' hanno lo stesso peso")
             SEF.consistency_OK(['list_opt_sols'], f"Tutte le soluzioni in '{self.goals}'", f"Ora resta da verificare l'ottimalità")
-
+        # FIXME: E' giusto fare questo controllo oppure è obsoleto ?
         if 'list_opt_sols' in self.goals and 'num_opt_sols' in self.goals:
-            list_opt_sols_g = self.goals['opt_sol']
-            num_opt_sols_g = self.goals['opt_val']
+            list_opt_sols_g = self.goals['list_opt_sols']
+            num_opt_sols_g = self.goals['num_opt_sols']
             list_opt_sols_answ = ast.literal_eval(list_opt_sols_g.answ)
             if num_opt_sols_g.answ != len(list_opt_sols_answ):
                 return SEF.consistency_NO(['list_opt_sols', 'num_opt_sols'], f"Come '{list_opt_sols_g.alias}' hai inserito '{list_opt_sols_g.answ}', ma essa presenta un numero di soluzioni diverso dal valore '{num_opt_sols_g.alias}' immesso")
             SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il numero di soluzioni di '{list_opt_sols_g.alias}' corrisponde con il valore '{num_opt_sols_g.alias}'", f"Ora resta da verificare l'ottimalità")
 
         if 'list_opt_sols' in self.goals and 'opt_val' in self.goals:
-            list_opt_sols_g = self.goals['opt_sol']
+            list_opt_sols_g = self.goals['list_opt_sols']
             opt_val_g = self.goals['opt_val']
             list_opt_sols_answ = ast.literal_eval(list_opt_sols_g.answ)
-            sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in list_opt_sols_answ]
+            sols_weights = [sum([self.I.edges[i][1] for i in tree]) for tree in list_opt_sols_answ] #lista dei pesi delle soluzioni ottime
             if not all(weight == opt_val_g.answ for weight in sols_weights):
                 return SEF.consistency_NO(['list_opt_sols', 'opt_val'], f"Il peso totale di alcune delle soluzioni in '{list_opt_sols_g.alias}' e il valore '{opt_val_g.alias}' non corrispondono")
             SEF.consistency_OK(['list_opt_sols', 'opt_val'], f"Il peso totale di ogni soluzione in '{list_opt_sols_g.alias}' corrisponde con il valore '{opt_val_g.alias}'", f"Ora resta da verificare l'ottimalità")
@@ -475,7 +474,7 @@ class verify_submission_problem_specific(verify_submission_gen):
         if 'opt_sol' in self.goals:
             g = self.goals['opt_sol']
             answ = ast.literal_eval(g.answ)
-            list_opt_sols = sum([set(tree) for tree in SEF.oracle_dict['opt_sol']])
+            list_opt_sols = sum([set(tree) for tree in SEF.oracle_dict['opt_sol']]) #non la soluzione ottima perchè l'utente potrebbe trovare una soluzione diversa da quella dell'oracolo
             if set(answ) not in list_opt_sols:
                 return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma essa non è tra le soluzioni ottime")
             SEF.optimality_OK(g, f"{g.alias} = {g.answ} é effettivamente una possibile soluzione ottima", "")
@@ -490,7 +489,7 @@ class verify_submission_problem_specific(verify_submission_gen):
         if 'list_opt_sols' in self.goals:
             g = self.goals['list_opt_sols']
             answ = [set(tree) for tree in ast.literal_eval(g.answ)]
-            true_answ = [set(tree) for tree in SEF.oracle_dict['list_opt_sols']]
+            true_answ = [set(tree) for tree in SEF.oracle_dict['list_opt_sols']] #ogni soluzione sia una sottolista di tutte le soluzioni ottime #FIXME: es. utente inserisce una lista di 5 soluzioni, mentre l'oracolo ne possiede 10.
             if not all(tree in true_answ for tree in answ):
                 return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma non tutte le soluzioni sono ottimali")
             if len(answ) < len(true_answ):
