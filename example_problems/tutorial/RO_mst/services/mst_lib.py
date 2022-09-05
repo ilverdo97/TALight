@@ -64,7 +64,7 @@ def check_tree(tree: list, n: int, edges: list) -> bool:
     """
     graph = nx.MultiGraph(n)
     for i in tree:
-        u, v = list(edges[i][0])
+        u, v = list(edges[i][0])    # edges[i] == ({u, v}, w)
         graph.add_edge(u, v)
     return nx.is_tree(graph)
 
@@ -75,7 +75,7 @@ def check_spanning(tree: list, n: int, edges: list) -> bool:
     """
     nodes_found = set()
     for i in tree:
-        nodes_found = nodes_found.union(edges[i][0])
+        nodes_found = nodes_found.union(edges[i][0])    # edges[i] == ({u, v}, w)
     return len(nodes_found) == n
 
 
@@ -83,9 +83,9 @@ def check_weight_in_range(input_weight: float, edges: list, nodes: int) -> int:
     """
     Verifica il peso totale dell'albero rientra nel range possibile.
     """
-    weights = sorted([w for _, w in edges])
-    min_weight = sum(weights[:nodes - 1])
-    max_weight = sum(weights[-(nodes-1):])
+    weights = sorted([w for _, w in edges])     # ordina gli archi per peso crescente
+    min_weight = sum(weights[:nodes - 1])       # somma i pesi dei primi |V| - 1 archi
+    max_weight = sum(weights[-(nodes-1):])      # somma i pesi degli ultimi |V| - 1 archi
     return -1 if input_weight < min_weight else 1 if input_weight > max_weight else 0
 
 
@@ -128,6 +128,9 @@ def check_instance_consistency(instance: dict):
     if not 0 <= query_edge < m:
         print(f"Errore: il query_edge non esiste")
         exit(0)
+    if len(set(forbidden_edges).intersection(set(forced_edges))) != 0:
+        print(f"Errore: alcuni forced_edges sono anche forbidden_edges")
+        exit(0)
     if query_edge in forbidden_edges:
         print(f"Errore: il query_edge è nei forbidden_edges, la soluzione può solo che essere in_no")
         exit(0)
@@ -142,19 +145,32 @@ def check_instance_consistency(instance: dict):
         exit(0)
 
 
-class Graph: #descrivere struttura del grafo.
-    def __init__(self, vertices: int): #info salvate n°vertici, lista archi, matrice di adiacenza
-        self.V = vertices
-        self.edges = []
-        self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
+class Graph:
+    """
+    Classe per grafi pesati indiretti, con possibili archi paralleli.
+    """
+
+    def __init__(self, vertices: int):
+        self.V = vertices   # numero di vertici
+        self.edges = []     # lista degli archi, [(u, v, weight, label), ...]
+        self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]   # matrice di adiacenza
 
     def add_edge(self, u: int, v: int, weight: float, label: int) -> None:
         """
-        Aggiungi un arco al grafo
+        Aggiungi un arco al grafo.
         """
         self.edges.append((u, v, weight, label))
         self.adjacency[u][v].append({'weight': weight, 'label': label})
         self.adjacency[v][u].append({'weight': weight, 'label': label})
+
+    def add_all_edges(self, edges: list) -> None:
+        """
+        Aggiungi una lista di archi pesati, nel formato [({u,v}, w), ...], al grafo attuale.
+        """
+        for label, edge in enumerate(edges):
+            u, v = list(edge[0])
+            weight = float(edge[1])
+            self.add_edge(u, v, weight, label)
 
     def __search_root(self, parent: list, i: int) -> int:
         """
@@ -241,7 +257,7 @@ class Graph: #descrivere struttura del grafo.
             # il peso è equivalente a quello dell'arco tagliato
             if label != cut_l and \
                     label not in excluded and \
-                    (u in subtree ^ v in subtree) and \
+                    ((u in subtree) ^ (v in subtree)) and \
                     weight == cut_w:
                 return label
 
@@ -288,23 +304,18 @@ def solver(input_to_oracle: dict) -> dict:
     forbidden_edges = ast.literal_eval(forbidden_edges)
     forced_edges = ast.literal_eval(forced_edges)
     graph = Graph(n)
-    for label, edge in enumerate(edges):
-        u, v = list(edge[0])
-        weight = float(edge[1])
-        graph.add_edge(u, v, weight, label)
+    graph.add_all_edges(edges)
 
     opt_sol, opt_val = graph.kruskal_constrained(forced_edges, forbidden_edges)
     list_opt_sols = graph.all_mst(forced_edges, forbidden_edges)
     num_opt_sols = len(list_opt_sols)
-    edge_in = 0
-    edge_profile = 'in_no'
-    for mst in list_opt_sols:
-        if query_edge in mst:
-            edge_in += 1
-    if edge_in == len(list_opt_sols):
+    count = [query_edge in sol for sol in list_opt_sols].count(True)
+    if count == len(list_opt_sols):
         edge_profile = 'in_all'
-    elif edge_in > 0:
+    elif count > 0:
         edge_profile = 'in_some_but_not_in_all'
+    else:
+        edge_profile = 'in_no'
 
     print(f"input_to_oracle={input_to_oracle}", file=stderr)
     input_data = input_to_oracle["input_data_assigned"]
