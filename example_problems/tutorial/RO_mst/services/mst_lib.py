@@ -256,6 +256,7 @@ class Graph:
             # i nodi che collega appartengono a due sotto-alberi diversi
             # il peso è equivalente a quello dell'arco tagliato
             if label != cut_l and \
+                    label not in tree and \
                     label not in excluded and \
                     ((u in subtree) ^ (v in subtree)) and \
                     weight == cut_w:
