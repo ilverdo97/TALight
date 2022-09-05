@@ -269,16 +269,18 @@ class Graph:
         Trova tutti gli MST del grafo attuale, a partire da una soluzione ottima
         """
         search_set = tree.difference(forced)    # si esclude dalla ricerca gli archi forzati
+        forced_copy = forced.copy()
         msts = []
         for edge in search_set:
             sub = self.__find_substitute(edge, tree, excluded)  # ricerca del sostituto per edge
             if sub is not None:
-                new_tree = tree                 # nuovo mst trovato in cui...
-                new_tree.remove(edge)           # sostituisco l'arco tagliato (edge)...
+                new_tree = tree.copy()          # nuovo mst trovato in cui...
+                new_tree.remove(edge)           # ...sostituisco l'arco tagliato (edge)...
                 new_tree.add(sub)               # ...con l'arco sostitutivo (sub)
                 msts.append(list(new_tree))     # aggiungi il nuovo mst alla lista degli mst trovati
                 # ricerca ricorsiva di nuovi mst a partire da quello nuovo trovato, inserendo tra gli esclusi edge
-                msts += self.__all_mst(new_tree, forced, excluded.union({edge}))
+                msts += self.__all_mst(new_tree, forced_copy, excluded.union({edge}))
+            forced_copy.add(edge)
         return msts
 
     def all_mst(self, forced: list, excluded: list) -> list:
