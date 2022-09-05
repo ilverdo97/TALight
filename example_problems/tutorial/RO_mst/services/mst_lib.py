@@ -3,26 +3,29 @@ import re
 import networkx as nx
 from sys import stderr
 from typing import Dict
-
 from RO_verify_submission_gen_prob_lib import verify_submission_gen
 
-instance_objects_spec = { #specifiche istanza problema
-    ('n', int), #nodi
-    ('m', int), #archi
-    ('edges', str), #lista archi
-    ('forbidden_edges', str), #lista archi da evitare
-    ('forced_edges', str), #lsta archi che devono essere presenti
-    ('query_edge', str), #indice di un arco
+# specifiche dell'istanza del problema
+instance_objects_spec = {
+    ('n', int),                 # numero di nodi
+    ('m', int),                 # numero di archi
+    ('edges', str),             # lista degli archi
+    ('forbidden_edges', str),   # lista indici degli archi da escludere
+    ('forced_edges', str),      # lista indici degli archi obbligati
+    ('query_edge', str),        # indice arco da esaminare
 }
 
+# specifiche delle soluzioni
 answer_objects_spec = {
-    'opt_sol': str, #soluzione ottimale mst
-    'opt_val': int, #valore ottimale (peso di qeusta sol ottimale)
-    'num_opt_sols': int, #numero di solutzione ottime
-    'list_opt_sols': str, #lista soluzioni ottime
-    'edge_profile': str #rispondere alle 3 question: tutte, nessuna, alcune
+    'opt_sol': str,         # soluzione ottimale (lista indici archi)
+    'opt_val': int,         # Valore ottimale (peso di questa opt_sol)
+    'num_opt_sols': int,    # numero di soluzioni ottimali totali
+    'list_opt_sols': str,   # lista soluzioni ottimali
+    'edge_profile': str     # il query_edge appartiene a nessuna ("in_no"), a tutte ("in_all") o ad alcune soluzioni
+                            # ottime ("in_some_but_not_in_all")
 }
 
+# lista delle soluzioni implementate
 answer_objects_implemented = [
     'opt_sol',
     'opt_val',
@@ -33,6 +36,9 @@ answer_objects_implemented = [
 
 
 def check_isolated_nodes(n: int, edges: list) -> bool:
+    """
+    Verifica se esistono nodi isolati (nodi non connessi da archi).
+    """
     nodes_found = set()
     for u, v, w in edges:
         nodes_found.add(u)
@@ -41,6 +47,9 @@ def check_isolated_nodes(n: int, edges: list) -> bool:
 
 
 def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list) -> bool:
+    """
+    Verifica se esistono nodi isolati, anche a causa di archi esclusi.
+    """
     nodes_found = set()
     for i, (u, v, w) in enumerate(edges):
         if i not in forbidden_edges:
@@ -50,6 +59,9 @@ def check_isolated_nodes_by_forbidden(n: int, edges: list, forbidden_edges: list
 
 
 def check_tree(tree: list, n: int, edges: list) -> bool:
+    """
+    Verifica se la lista di archi corrisponde a un albero.
+    """
     graph = nx.MultiGraph(n)
     for i in tree:
         u, v = list(edges[i][0])
@@ -58,6 +70,9 @@ def check_tree(tree: list, n: int, edges: list) -> bool:
 
 
 def check_spanning(tree: list, n: int, edges: list) -> bool:
+    """
+    Verifica se la lista di archi copre tutto il grafo.
+    """
     nodes_found = set()
     for i in tree:
         nodes_found = nodes_found.union(edges[i][0])
@@ -65,13 +80,16 @@ def check_spanning(tree: list, n: int, edges: list) -> bool:
 
 
 def check_weight_in_range(input_weight: float, edges: list, nodes: int) -> int:
+    """
+    Verifica il peso totale dell'albero rientra nel range possibile.
+    """
     weights = sorted([w for _, w in edges])
     min_weight = sum(weights[:nodes - 1])
     max_weight = sum(weights[-(nodes-1):])
     return -1 if input_weight < min_weight else 1 if input_weight > max_weight else 0
 
 
-def check_instance_consistency(instance: dict): #se l'istanza del proff ha senso oppure no
+def check_instance_consistency(instance: dict):
     print(f"instance={instance}", file=stderr)
     n = instance['n']
     m = instance['m']
@@ -130,17 +148,26 @@ class Graph: #descrivere struttura del grafo.
         self.edges = []
         self.adjacency = [[[] for _ in range(vertices)] for _ in range(vertices)]
 
-    def add_edge(self, u: int, v: int, weight: float, label: int) -> None: #aggiungiamo arco per volta
-        self.edges.append((u, v, weight, label)) #label=indice lista archi all'inizio
+    def add_edge(self, u: int, v: int, weight: float, label: int) -> None:
+        """
+        Aggiungi un arco al grafo
+        """
+        self.edges.append((u, v, weight, label))
         self.adjacency[u][v].append({'weight': weight, 'label': label})
         self.adjacency[v][u].append({'weight': weight, 'label': label})
 
-    def _search_root(self, parent: list, i: int) -> int: #qual'è la radice del suo albero
-        return i if parent[i] == i else self._search_root(parent, parent[i])
+    def __search_root(self, parent: list, i: int) -> int:
+        """
+        Cerca il nodo radice del sotto albero a cui appartiene il nodo i
+        """
+        return i if parent[i] == i else self.__search_root(parent, parent[i])
 
-    def _apply_union(self, parent: list, rank: list, u: int, v: int): #unisce i sotto-alberi
-        u_root = self._search_root(parent, u)
-        v_root = self._search_root(parent, v)
+    def __apply_union(self, parent: list, rank: list, u: int, v: int):
+        """
+        Unisci i sotto-alberi a cui appartengono u e v
+        """
+        u_root = self.__search_root(parent, u)
+        v_root = self.__search_root(parent, v)
         if rank[u_root] < rank[v_root]:
             parent[u_root] = v_root
         elif rank[u_root] > rank[v_root]:
@@ -149,73 +176,103 @@ class Graph: #descrivere struttura del grafo.
             parent[v_root] = u_root
             rank[u_root] += 1
 
-    def kruskal_constrained(self, forced: list, excluded: list) -> (list, int): #crea una soluzione ottimale
+    def kruskal_constrained(self, forced: list, excluded: list) -> (list, int):
+        """
+        Trova un MST per il grafo attuale, considerando archi forzati e archi esclusi. Nota: funziona solo se il grafo
+        è connesso.
+        """
         mst = []
         i, e, tot_weight = 0, 0, 0
-        self.edges = sorted(self.edges, key=lambda item: item[2])
-        parent = list(range(self.V))
-        rank = [0] * self.V
+        self.edges = sorted(self.edges, key=lambda item: item[2])   # ordina gli archi in ordine crescente di peso
+        parent = list(range(self.V))    # list del nodo genitore, per ogni nodo
+        rank = [0] * self.V             # dimensione del sotto-albero di appartenenza per ogni nodo
+
+        # aggiungo gli archi forzati alla soluzione (obbligati)
         for u, v, weight, label in self.edges:
-            u_root = self._search_root(parent, u) #di che sottoalbero fa parte
-            v_root = self._search_root(parent, v)
             if label in forced:
                 e += 1
                 mst.append(label)
                 tot_weight += weight
-                self._apply_union(parent, rank, u_root, v_root)
+                u_root = self.__search_root(parent, u)              # ricerca della radice di u
+                v_root = self.__search_root(parent, v)              # ricerca della radice di v
+                self.__apply_union(parent, rank, u_root, v_root)    # unisci i due sotto-alberi
+
+        # itera finché non completi l'albero (n°archi = |V| - 1)
         while e < self.V - 1:
             u, v, weight, label = self.edges[i]
             i += 1
-            u_root = self._search_root(parent, u)
-            v_root = self._search_root(parent, v)
-            if u_root != v_root and label not in excluded and label not in forced: #controlla che nodi non sia esclusi
+            u_root = self.__search_root(parent, u)
+            v_root = self.__search_root(parent, v)
+            # se: le radici sono diverse, l'arco non è in quelli esclusi e non è già stato aggiunto (forzato)
+            if u_root != v_root and label not in excluded and label not in forced:
                 e += 1
-                mst.append(label)
+                mst.append(label)   # aggiungi arco a mst
                 tot_weight += weight
-                self._apply_union(parent, rank, u_root, v_root)
-        return mst, tot_weight #ritorno lista indice archi es.([0, 2]), peso totale
+                self.__apply_union(parent, rank, u_root, v_root)    # unisci i due sotto-alberi
 
-    def _find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
+        return mst, tot_weight  # ritorno lista indice archi es.([0, 2]), peso totale
+
+    def __find_substitute(self, cut: int, tree: set, excluded: set) -> int | None:
+        """
+        Trova un sostituto ideale per l'arco cut
+        """
+        # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        partition = {cut_u} #subtree
-        tmp_list = [cut_u] #nodi da esplorare
+        subtree = {cut_u}       # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_u]      # lista dei nodi dei quali bisogna esplorare gli archi
 
+        # costruzione dei due sotto-alberi generati dal taglio
         while tmp_list:
             u = tmp_list.pop()
             for v in range(self.V):
-                for edge in self.adjacency[u][v]:
-                    if edge['label'] in tree and edge['label'] != cut_l and v not in partition:
-                        tmp_list.append(v)
-                        partition.add(v)
-                        break
+                # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
+                if v not in subtree and (edges := self.adjacency[u][v]):
+                    # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
+                    if edges[0]['label'] in tree and edges[0]['label'] != cut_l:
+                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                        subtree.add(v)      # aggiungi v al sotto-albero
 
+        # ricerca di un sostituito per l'arco tagliato, ovvero un arco che riconnette i due sotto-alberi,
+        # con peso uguale a quello tagliato (non può essere minore)
         for u, v, weight, label in self.edges:
+            # se l'arco, non è quello tagliato
+            # non è nella lista degli archi esclusi
+            # i nodi che collega appartengono a due sotto-alberi diversi
+            # il peso è equivalente a quello dell'arco tagliato
             if label != cut_l and \
-                    label not in tree and \
                     label not in excluded and \
-                    (u in partition ^ v in partition) and \
-                    weight == cut_w:                               #u e v fanno parte di due partizioni diverse, con lo xor vado a controllare che il nodo
-                return label                                       # u e v non facciano parte della stessa partizione perche non va bene
+                    (u in subtree ^ v in subtree) and \
+                    weight == cut_w:
+                return label
+
+        # non esiste un sostituto per l'arco tagliato
         return None
 
-    def _all_mst(self, tree: set, forced: set, excluded: set) -> list:
-        search_set = tree.difference(forced)
+    def __all_mst(self, tree: set, forced: set, excluded: set) -> list:
+        """
+        Trova tutti gli MST del grafo attuale, a partire da una soluzione ottima
+        """
+        search_set = tree.difference(forced)    # si esclude dalla ricerca gli archi forzati
         msts = []
         for edge in search_set:
-            sub = self._find_substitute(edge, tree, excluded)
+            sub = self.__find_substitute(edge, tree, excluded)  # ricerca del sostituto per edge
             if sub is not None:
-                new_tree = tree
-                new_tree.remove(edge)
-                new_tree.add(sub)
-                msts.append(list(new_tree))
-                others = self._all_mst(new_tree, forced, excluded.union({edge}))
-                if others:
-                    msts += others
+                new_tree = tree                 # nuovo mst trovato in cui...
+                new_tree.remove(edge)           # sostituisco l'arco tagliato (edge)...
+                new_tree.add(sub)               # ...con l'arco sostitutivo (sub)
+                msts.append(list(new_tree))     # aggiungi il nuovo mst alla lista degli mst trovati
+                # ricerca ricorsiva di nuovi mst a partire da quello nuovo trovato, inserendo tra gli esclusi edge
+                msts += self.__all_mst(new_tree, forced, excluded.union({edge}))
         return msts
 
-    def all_mst(self, forced: list, excluded: list) -> list: #trova tutti gli mst
+    def all_mst(self, forced: list, excluded: list) -> list:
+        """
+        Trova tutti gli MST del grafo attuale
+        """
+        # trova un mst di partenza
         first, _ = self.kruskal_constrained(forced, excluded)
-        return [first] + self._all_mst(set(first), set(forced), set(excluded))
+        # trova tutti gli altri mst a partire dalla soluzione appena trovata
+        return [first] + self.__all_mst(set(first), set(forced), set(excluded))
 
 
 def solver(input_to_oracle: dict) -> dict:
