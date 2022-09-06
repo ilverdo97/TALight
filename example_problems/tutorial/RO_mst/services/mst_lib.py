@@ -144,7 +144,6 @@ def check_instance_consistency(instance: dict):
         print(f"Errore: sono presenti dei nodi isolati, dovuti ad archi eliminati da forbidden_edges")
         exit(0)
 
-
 class Graph:
     """
     Classe per grafi pesati indiretti, con possibili archi paralleli.
@@ -265,6 +264,7 @@ class Graph:
         # non esiste un sostituto per l'arco tagliato
         return None
 
+
     def __all_mst(self, tree: set, forced: set, excluded: set) -> list:
         """
         Trova tutti gli MST del grafo attuale, a partire da una soluzione ottima
@@ -292,6 +292,43 @@ class Graph:
         first, _ = self.kruskal_constrained(forced, excluded)
         # trova tutti gli altri mst a partire dalla soluzione appena trovata
         return [first] + self.__all_mst(set(first), set(forced), set(excluded))
+
+    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list):
+        # ricerca arco tagliato nella lista degli archi del grafo
+        cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
+        subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_u]  # lista dei nodi dei quali bisogna esplorare gli archi
+
+        # costruzione dei due sotto-alberi generati dal taglio
+        while tmp_list:
+            u = tmp_list.pop()
+            for v in range(self.V):
+                # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
+                if v not in subtree and (edges := self.adjacency[u][v]):
+                    # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
+                    if edges[0]['label'] in tree and edges[0]['label'] != cut_l:
+                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                        subtree.add(v)  # aggiungi v al sotto-albero
+        shore = subtree.copy()
+        if len(shore) > (self.V//2):
+            shore = set(range(self.V)).difference(shore)
+
+        edgecut = [cut_l]
+
+        # ricerca di un sostituito per l'arco tagliato, ovvero un arco che riconnette i due sotto-alberi,
+        # con peso uguale a quello tagliato (non può essere minore)
+        for u, v, weight, label in self.edges:
+            # se l'arco, non è quello tagliato
+            # non è nella lista degli archi esclusi
+            # i nodi che collega appartengono a due sotto-alberi diversi
+
+            if label != cut_l and \
+                    label not in tree and \
+                    label not in excluded and \
+                    ((u in subtree) ^ (v in subtree)):
+
+                edgecut.append(label)
+        return list(shore), edgecut
 
 
 def solver(input_to_oracle: dict) -> dict:
