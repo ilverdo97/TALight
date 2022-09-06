@@ -12,17 +12,19 @@ instance_objects_spec = {
     ('edges', str),             # lista degli archi
     ('forbidden_edges', str),   # lista indici degli archi da escludere
     ('forced_edges', str),      # lista indici degli archi obbligati
-    ('query_edge', str),        # indice arco da esaminare
+    ('query_edge', str)         # indice arco da esaminare
 }
 
-# specifiche delle soluzioni
+# specifiche delle risposte dell'utente
 answer_objects_spec = {
     'opt_sol': str,         # soluzione ottimale (lista indici archi)
     'opt_val': int,         # Valore ottimale (peso di questa opt_sol)
     'num_opt_sols': int,    # numero di soluzioni ottimali totali
     'list_opt_sols': str,   # lista soluzioni ottimali
-    'edge_profile': str     # il query_edge appartiene a nessuna ("in_no"), a tutte ("in_all") o ad alcune soluzioni
-                            # ottime ("in_some_but_not_in_all")
+    'edge_profile': str,    # il query_edge appartiene a nessuna ("in_no"), a tutte ("in_all") o ad alcune soluzioni ottime ("in_some_but_not_in_all")
+    'cyc_cert': str,
+    'edgecut_cert': str,
+    'cutshore_cert': str
 }
 
 # lista delle soluzioni implementate
@@ -31,7 +33,10 @@ answer_objects_implemented = [
     'opt_val',
     'num_opt_sols',
     'list_opt_sols',
-    'edge_profile'
+    'edge_profile',
+    'cyc_cert',
+    'edgecut_cert',
+    'cutshore_cert'
 ]
 
 
@@ -252,6 +257,7 @@ class Graph:
         for u, v, weight, label in self.edges:
             # se l'arco, non è quello tagliato
             # non è nella lista degli archi esclusi
+            # non appartiene all'albero
             # i nodi che collega appartengono a due sotto-alberi diversi
             # il peso è equivalente a quello dell'arco tagliato
             if label != cut_l and \
@@ -293,7 +299,7 @@ class Graph:
         # trova tutti gli altri mst a partire dalla soluzione appena trovata
         return [first] + self.__all_mst(set(first), set(forced), set(excluded))
 
-    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list): #
+    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list):
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
         subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
@@ -309,25 +315,24 @@ class Graph:
                     if edges[0]['label'] in tree and edges[0]['label'] != cut_l:
                         tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
                         subtree.add(v)  # aggiungi v al sotto-albero
+
         shore = subtree.copy()
         if len(shore) > (self.V//2):
             shore = set(range(self.V)).difference(shore)
 
         edgecut = [cut_l]
-
         # ricerca di un sostituito per l'arco tagliato, ovvero un arco che riconnette i due sotto-alberi,
         # con peso uguale a quello tagliato (non può essere minore)
         for u, v, weight, label in self.edges:
             # se l'arco, non è quello tagliato
             # non è nella lista degli archi esclusi
             # i nodi che collega appartengono a due sotto-alberi diversi
-
             if label != cut_l and \
                     label not in tree and \
                     label not in excluded and \
                     ((u in subtree) ^ (v in subtree)):
-
                 edgecut.append(label)
+
         return list(shore), edgecut
 
 
@@ -371,7 +376,7 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
     def __init__(self, SEF, input_data_assigned: Dict, long_answer_dict: Dict, oracle_response: Dict = None):
         super().__init__(SEF, input_data_assigned, long_answer_dict, oracle_response)
 
-    def verify_format(self, SEF): #formato risposta
+    def verify_format(self, SEF):
         if not super().verify_format(SEF):
             return False
 
@@ -423,10 +428,9 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
         if 'list_opt_sols' in self.goals:
             g = self.goals['list_opt_sols']
             if type(g.answ) != str:
-                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
-                                        f"immettere una stringa di archi. Una lista di archi è data dagli è "
-                                        f"costituita da una lista di indici riferiti alla lista degli archi "
-                                        f"nell'istanza del problema")
+                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesta una lista "
+                                        f"di liste di archi. Una lista di archi è costituita da una lista di indici "
+                                        f"riferiti all'elenco degli archi nell'istanza del problema")
             try:
                 answ = ast.literal_eval(g.answ)
                 if type(answ) != list:
@@ -464,6 +468,55 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
             SEF.format_OK(g, f"come '{g.alias}' hai immesso una stringa come richiesto",
                           f"ovviamente durante lo svolgimento dell'esame non posso dirti se la stringa inserita sia "
                           f"poi la risposta corretta, ma il formato è corretto")
+
+        if 'edgecut_cert' in self.goals:
+            g = self.goals['edgecut_cert']
+            if type(g.answ) != str:
+                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                        f"immettere una stringa.")
+            try:
+                answ = ast.literal_eval(g.answ)
+                if type(answ) != list:
+                    return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                            f"immettere una lista di archi. Una lista di archi è costituita da una "
+                                            f"lista di indici riferiti all'elenco degli archi nell'istanza del problema")
+                if not all([isinstance(edge, int) for edge in answ]):
+                    return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                            f"immettere una lista di archi. Una lista di archi è costituita da una "
+                                            f"lista di indici riferiti alla lista degli archi "
+                                            f"nell'istanza del problema")
+            except SyntaxError:
+                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                        f"immettere una lista di archi. Impossibile effettuare il parsing "
+                                        f"dell'input: errore nella sintassi.")
+            SEF.format_OK(g, f"come `{g.alias}` hai immesso una stringa come richiesto",
+                          f"ovviamente durante lo svolgimento dell'esame non posso dirti se la stringa inserita sia "
+                          f"poi la risposta corretta, ma il formato è corretto")
+
+        if 'cutshore_cert' in self.goals:
+            g = self.goals['cutshore_cert']
+            if type(g.answ) != str:
+                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                        f"immettere una stringa.")
+            try:
+                answ = ast.literal_eval(g.answ)
+                if type(answ) != list:
+                    return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece "
+                                            f"richiesto di immettere una lista di nodi. Una lista di archi è "
+                                            f"costituita da una lista di interi, nel range stabilito "
+                                            f"dall'istanza del problema")
+                if not all([isinstance(node, int) for node in answ]):
+                    return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece "
+                                            f"richiesto di immettere una lista di nodi. Una lista di archi è "
+                                            f"costituita da una lista di interi, nel range stabilito "
+                                            f"dall'istanza del problema")
+            except SyntaxError:
+                return SEF.format_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}' dove era invece richiesto di "
+                                        f"immettere una lista di nodi. Impossibile effettuare il parsing "
+                                        f"dell'input: errore nella sintassi.")
+            SEF.format_OK(g, f"come `{g.alias}` hai immesso una stringa come richiesto",
+                          f"ovviamente durante lo svolgimento dell'esame non posso dirti se la stringa "
+                          f"inserita sia poi la risposta corretta, ma il formato è corretto")
 
         return True
 
@@ -548,7 +601,6 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
             if len(set(sols_weights)) != 1:
                 return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzioni in '{g.alias}' hanno lo stesso peso")
             SEF.consistency_OK(['list_opt_sols'], f"Tutte le soluzioni in '{self.goals}'", f"Ora resta da verificare l'ottimalità")
-        # FIXME: E' giusto fare questo controllo oppure è obsoleto ?
         if 'list_opt_sols' in self.goals and 'num_opt_sols' in self.goals:
             list_opt_sols_g = self.goals['list_opt_sols']
             num_opt_sols_g = self.goals['num_opt_sols']
@@ -597,7 +649,7 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
         if 'list_opt_sols' in self.goals:
             g = self.goals['list_opt_sols']
             answ = [set(tree) for tree in ast.literal_eval(g.answ)]
-            true_answ = [set(tree) for tree in SEF.oracle_dict['list_opt_sols']] #ogni soluzione sia una sottolista di tutte le soluzioni ottime #FIXME: es. utente inserisce una lista di 5 soluzioni, mentre l'oracolo ne possiede 10.
+            true_answ = [set(tree) for tree in SEF.oracle_dict['list_opt_sols']] #ogni soluzione sia una sottolista di tutte le soluzioni ottime
             if not all(tree in true_answ for tree in answ):
                 return SEF.optimality_NO(g, f"Come '{g.alias}' hai inserito '{g.answ}', ma non tutte le soluzioni sono ottimali")
             if len(answ) < len(true_answ):
