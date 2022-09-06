@@ -942,7 +942,30 @@ class verify_submission_problem_specific(verify_submission_gen):
                     if any([w <= edges[query_edge][1] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
                         return sef.optimality_NO(g, f"Secondo il certificato {edgecut_cert_g.alias}, il {g.alias} non "
                                                     f"è l'arco strettamente minore.")
-
-        # TODO: verifica correttezza certificati
+                    sef.optimality_OK(g, f"Il certificato {edgecut_cert_g.alis} effettivamente dimostra che {g.alias} "
+                                         f"deve appartenere a tutte le soluzioni ottime.", "")
+                if 'cutshore_cert' in self.goals:
+                    cutshore_cert_g = self.goals['cutshore_cert']
+                    cutshore_cert_answ: list = ast.literal_eval(cutshore_cert_g.answ)
+                    # TODO: verifica del cutshore
+            if g.answ == 'in_some_but_not_in_all':
+                if 'edgecut_cert' in self.goals:
+                    edgecut_cert_g = self.goals['edgecut_cert']
+                    edgecut_cert_answ: list = ast.literal_eval(edgecut_cert_g.answ)
+                    edgecut_cert_answ.remove(query_edge)
+                    if any([w < edges[query_edge][1] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
+                        return sef.optimality_NO(g, f"Secondo il certificato {edgecut_cert_g.alias}, il {g.alias} non "
+                                                    f"è uno degli archi di peso minimo.")
+                    sef.optimality_OK(g, f"Il certificato {edgecut_cert_g.alis} effettivamente dimostra che {g.alias} "
+                                         f"è uno dei possibili archi di peso minimo.", "")
+                if 'cutshore_cert' in self.goals:
+                    cutshore_cert_g = self.goals['cutshore_cert']
+                    cutshore_cert_answ: list = ast.literal_eval(cutshore_cert_g.answ)
+                    # TODO: verifica del cutshore
+            if g.answ == 'in_no':
+                if 'cyc_cert' in self.goals:
+                    cyc_cert_g = self.goals['cyc_cert']
+                    cyc_cert_answ: list = ast.literal_eval(cyc_cert_g.answ)
+                    # TODO: verifica del cyc
 
         return True
