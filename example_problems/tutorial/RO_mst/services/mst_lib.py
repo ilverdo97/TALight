@@ -580,6 +580,27 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
                 return SEF.feasibility_NO(g, f"Come '{g.alias} hai immesso '{g.answ}', ma in qualsiasi grafo non possono esistere più di n^(n-2) spanning trees, dove n è il numero di archi")
             SEF.feasibility_OK(g, f"Come {g.alias} hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di `{g.alias}`")
 
+        if 'edgecut_cert' in self.goals:
+            g = self.goals['edgecut_cert']
+            answ = ast.literal_eval(g.answ) #risposta utente
+            forbidden_edges = ast.literal_eval(self.I.forbidden_edges)
+            if not all(0 <= e < self.I.m for e in answ):
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti archi che non esistono")
+            if len(answ) != len(set(answ)):
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti degli archi ripetuti.")
+            if len(set(answ).intersection(set(forbidden_edges))) != 0:
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti dei forbidden_edges")
+            SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
+
+        if 'cutshore_cert' in self.goals:
+            g = self.goals['cutshore_cert']
+            answ = ast.literal_eval(g.answ) #risposta utente
+            if not all(0 <= v < self.I.n for v in answ):
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti dei nodi che non esistono")
+            if len(answ) != len(set(answ)):
+                return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti dei nodi ripetuti.")
+            SEF.feasibility_OK(g, f"Come '{g.alias}' hai immesso un sottoinsieme degli oggetti dell'istanza originale", f"Ora resta da stabilire l'ottimalità di '{g.alias}'")
+
         return True
 
     def verify_consistency(self, SEF): #verificare che l'utente sia consistente con se stesso rispetto a quello che inserisce lui
