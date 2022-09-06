@@ -73,16 +73,16 @@ services:
         default: "in_all"
         explain: "expected one string among: [in_all] if the query arc belongs to all MSTs. [in_no] if the query arc belongs to no MSTs. [in_some_but_not_in_all] if the query arc belongs to some MST but there also exist MSTs that do not use the query arc."
         example: "il valore di default è risposta corretta per il Caso d'Esempio 1"
-      cyc_cert:
+      cyc_cert:  #FIXME: rappresenta un ciclo, se in quel ciclo il query_edge è quello di peso strettamente maggiore allora non è in nessuna soluzione.
         regex: ^(.*)$
         default: "[]"
         explain: "expected a cyclic sequence of edges. The sequence is left empty in case no certificate cycle is present."
-      edgecut_cert:
+      edgecut_cert:  #FIXME: nel momento in cui noi andiamo a tagliare mst(albero) nel query_edge, automaticamente ci da le due shore, dimostriamo che tutti gli archi del grafo che connetto le due shore, hanno peso strettamente maggiore rispetto al query_edge( query_edge deve essere l'arco di peso strettamente minore)
         regex: ^(.*)$
         default: "[0,1]"
         explain: "expected a cut of the graph in the form of a list of edges"
         example: "[0,1] would be the correct edgecut certificate per il Caso d'Esempio 1. Indeed to prove that arc e0 is in all optimal solution consider that arc e0 is the one of strictly minimum cost in the cut comprising the arcs e0 and e1."
-      cutshore_cert:
+      cutshore_cert:  #FIXME: date le due shore dal taglio, ne restituiamo quella più piccola.
         regex: ^(.*)$
         explain: "expected a cut of the graph in the form of a non-empty list of nodes leaving out at least one node. These nodes form one shore of the intended cut."
         default: "[0]"
@@ -201,7 +201,7 @@ services:
         explain1: "[opt_sol] una soluzione ottima, ossia un insieme di archi che costituisca un MST per l'istanza assegnata (considerati anche gli eventuali vincoli aggiuntivi)"
         explain2: '[opt_val] il minimo costo di una soluzione ammissibile (=somma dei costi degli archi inclusi nella soluzione)'
         explain3: '[num_opt_sols] il numero di soluzioni ottime differenti'
-        explain4: '[list_opt_sols] la lista di tutte le soluzioni ottime (in qualsiasi ordine)'
+        explain4: '[list_opt_sols] la lista di tutte le soluzioni ottime (in qualsiasi ordine)' #FIXME: |
         explain5: "[edge_profile] analisi se l'query_edge appartenga a tutte, oppure nessuna, oppure alcune ma non tutte le soluzioni ottime, coi relativi certificati di ciclo o di taglio (il certificato di taglio viene fornito sia come insieme di archi che come l'insieme di nodi nella shore più piccola)"
         example1: "-a request_dict=\"{'opt_sol': 'opt_sol', 'opt_val': 'opt_val'}\""
         example2: "-a request_dict=\"{'opt_sol': 'opt_sol1', 'opt_val': 'opt_val1'}\""
