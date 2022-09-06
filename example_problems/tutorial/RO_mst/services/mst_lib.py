@@ -293,7 +293,7 @@ class Graph:
         # trova tutti gli altri mst a partire dalla soluzione appena trovata
         return [first] + self.__all_mst(set(first), set(forced), set(excluded))
 
-    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list):
+    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list): #
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
         subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
