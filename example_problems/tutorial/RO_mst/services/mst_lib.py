@@ -335,6 +335,50 @@ class Graph:
 
         return list(shore), edgecut
 
+    def check_edgecut(self, edgecut: list, excluded: list) -> bool:
+        """
+         Verifica che i due shore siano perfettamente separate dall'edgecut
+        """
+        cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == edgecut[0], self.edges))[0]
+        subtree1 = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_u]  # lista dei nodi dei quali bisogna esplorare gli archi
+
+        # costruzione dei due sotto-alberi generati dal taglio
+        while tmp_list:
+            u = tmp_list.pop()
+            for v in range(self.V):
+                # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
+                if v not in subtree1 and (edges := self.adjacency[u][v]):
+                    # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
+                    if edges[0]['label'] not in edgecut and edges[0]['label'] not in excluded:
+                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                        subtree1.add(v)  # aggiungi v al sotto-albero
+
+        subtree2 = {cut_v}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_v]  # lista dei nodi dei quali bisogna esplorare gli archi
+
+        # costruzione dei due sotto-alberi generati dal taglio
+        while tmp_list:
+            u = tmp_list.pop()
+            for v in range(self.V):
+                # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
+                if v not in subtree2 and (edges := self.adjacency[u][v]):
+                    # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
+                    if edges[0]['label'] not in edgecut and edges[0]['label'] not in excluded:
+                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                        subtree2.add(v)  # aggiungi v al sotto-albero
+
+        return len(subtree1.intersection(subtree2)) != 0
+
+    def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
+        # ricerca arco tagliato nella lista degli archi del grafo
+        cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
+        subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_u]  # lista dei nodi dei quali bisogna esplorare gli archi
+
+        return None
+
+
 
 def solver(input_to_oracle: dict) -> dict:
     instance = input_to_oracle['input_data_assigned']
