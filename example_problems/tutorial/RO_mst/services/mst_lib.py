@@ -299,7 +299,7 @@ class Graph:
         # trova tutti gli altri mst a partire dalla soluzione appena trovata
         return [first] + self.__all_mst(set(first), set(forced), set(excluded))
 
-    def __find_shore_and_edgecut(self, cut: int, tree: set, excluded: set) -> (list, list):
+    def find_shore_and_edgecut(self, cut: int, tree: list, excluded: set) -> (list, list):
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
         subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
@@ -355,12 +355,16 @@ def solver(input_to_oracle: dict) -> dict:
     list_opt_sols = graph.all_mst(forced_edges, forbidden_edges)
     num_opt_sols = len(list_opt_sols)
     count = [query_edge in sol for sol in list_opt_sols].count(True)
+    edge_profile = {}
     if count == len(list_opt_sols):
-        edge_profile = 'in_all'
+        edge_profile['answ'] = 'in_all'
+        edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = graph.find_shore_and_edgecut(query_edge, opt_sol, forbidden_edges)
     elif count > 0:
-        edge_profile = 'in_some_but_not_in_all'
+        edge_profile['answ'] = 'in_some_but_not_in_all'
+        edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = graph.find_shore_and_edgecut(query_edge, opt_sol, forbidden_edges)
     else:
-        edge_profile = 'in_no'
+        edge_profile['answ'] = 'in_no'
+        # edge_profile['cyc_cert'] = graph.find_cyc_cert(...)
 
     print(f"input_to_oracle={input_to_oracle}", file=stderr)
     input_data = input_to_oracle["input_data_assigned"]
@@ -582,7 +586,7 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
 
         if 'edgecut_cert' in self.goals:
             g = self.goals['edgecut_cert']
-            answ = ast.literal_eval(g.answ) #risposta utente
+            answ = ast.literal_eval(g.answ)
             forbidden_edges = ast.literal_eval(self.I.forbidden_edges)
             if not all(0 <= e < self.I.m for e in answ):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti archi che non esistono")
@@ -594,7 +598,7 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
 
         if 'cutshore_cert' in self.goals:
             g = self.goals['cutshore_cert']
-            answ = ast.literal_eval(g.answ) #risposta utente
+            answ = ast.literal_eval(g.answ)
             if not all(0 <= v < self.I.n for v in answ):
                 return SEF.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono presenti dei nodi che non esistono")
             if len(answ) != len(set(answ)):
@@ -622,6 +626,7 @@ class verify_submission_problem_specific(verify_submission_gen): #verifica soluz
             if len(set(sols_weights)) != 1:
                 return SEF.consistency_NO(['list_opt_sols'], f"Non tutte le soluzioni in '{g.alias}' hanno lo stesso peso")
             SEF.consistency_OK(['list_opt_sols'], f"Tutte le soluzioni in '{self.goals}'", f"Ora resta da verificare l'ottimalità")
+
         if 'list_opt_sols' in self.goals and 'num_opt_sols' in self.goals:
             list_opt_sols_g = self.goals['list_opt_sols']
             num_opt_sols_g = self.goals['num_opt_sols']
