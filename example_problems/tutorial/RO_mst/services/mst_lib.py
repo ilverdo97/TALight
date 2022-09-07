@@ -401,7 +401,22 @@ class Graph:
         """
         Verifica la lista di archi inseriti sia effettivamente un ciclo.
         """
-        # TODO: implementare check cyc_cert
+        cycle = cyc_cert.copy()
+        for i in range(len(cyc_cert) - 1):
+            if cycle[i] in excluded:
+                return False
+            u, v, _, _ = self.edges[cycle[i]]
+            edge1 = {u, v}
+            u, v, _, _ = self.edges[cycle[i + 1]]
+            edge2 = {u, v}
+            if len(edge1.intersection(edge2)) != 1:
+                return False
+        u, v, _, _ = self.edges[cycle[0]]
+        edge1 = {u, v}
+        u, v, _, _ = self.edges[cycle[-1]]
+        edge2 = {u, v}
+        if len(edge1.intersection(edge2)) != 1:
+            return False
         return True
 
 
