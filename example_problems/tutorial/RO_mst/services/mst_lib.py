@@ -302,7 +302,7 @@ class Graph:
         # trova tutti gli altri mst a partire dalla soluzione appena trovata
         return [first] + self.__all_mst(set(first), set(forced), set(excluded))
 
-    def find_shore_and_edgecut(self, cut: int, tree: list, excluded: set) -> (list, list):
+    def find_cutshore_and_edgecut(self, cut: int, tree: list, excluded: set) -> (list, list):
         """
         Costruisci i certificati di taglio a partire da un MST.
         """
@@ -419,11 +419,11 @@ def solver(input_to_oracle: dict) -> dict:
     if count == len(list_opt_sols):
         edge_profile['answ'] = 'in_all'
         edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = \
-            graph.find_shore_and_edgecut(query_edge, opt_sol, forbidden_edges)
+            graph.find_cutshore_and_edgecut(query_edge, opt_sol, forbidden_edges)
     elif count > 0:
         edge_profile['answ'] = 'in_some_but_not_in_all'
         edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = \
-            graph.find_shore_and_edgecut(query_edge, opt_sol, forbidden_edges)
+            graph.find_cutshore_and_edgecut(query_edge, opt_sol, forbidden_edges)
     else:
         edge_profile['answ'] = 'in_no'
         # edge_profile['cyc_cert'] = graph.find_cyc_cert(...)
@@ -747,6 +747,9 @@ class verify_submission_problem_specific(verify_submission_gen):
                 return sef.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', ma al suo interno sono "
                                              f"presenti identificatori di nodi ripetuti, pertanto il certificato "
                                              f"inserito non è valido.")
+            if len(answ) > n // 2:
+                return sef.feasibility_NO(g, f"Come '{g.alias}' hai immesso '{g.answ}', esse non può essere la shore "
+                                             f"più piccola.")
             sef.feasibility_OK(g, f"Come '{g.alias}' hai immesso un certificato valido.",
                                f"Ora resta da stabilire la correttezza di '{g.alias}'.")
 
@@ -939,7 +942,7 @@ class verify_submission_problem_specific(verify_submission_gen):
                     edgecut_cert_g = self.goals['edgecut_cert']
                     edgecut_cert_answ: list = ast.literal_eval(edgecut_cert_g.answ)
                     edgecut_cert_answ.remove(query_edge)
-                    if any([w <= edges[query_edge][1] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
+                    if any([w <= edges[query_edge][2] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
                         return sef.optimality_NO(g, f"Secondo il certificato {edgecut_cert_g.alias}, il {g.alias} non "
                                                     f"è l'arco strettamente minore.")
                     sef.optimality_OK(g, f"Il certificato {edgecut_cert_g.alias} effettivamente dimostra che {g.alias} "
@@ -947,7 +950,7 @@ class verify_submission_problem_specific(verify_submission_gen):
                 if 'cutshore_cert' in self.goals:
                     cutshore_cert_g = self.goals['cutshore_cert']
                     cutshore_cert_answ: list = ast.literal_eval(cutshore_cert_g.answ)
-                    if any([w <= edges[query_edge][1] for u, v, w, l in edges if ((u in cutshore_cert_answ) ^ (v in cutshore_cert_answ)) and l != query_edge]):
+                    if any([w <= edges[query_edge][2] for u, v, w, l in edges if ((u in cutshore_cert_answ) ^ (v in cutshore_cert_answ)) and l != query_edge]):
                         return sef.optimality_NO(g, f"Secondo il certificato {cutshore_cert_g.alias}, il {g.alias} non "
                                                     f"è l'arco strettamente minore.")
                     sef.optimality_OK(g, f"Il certificato {cutshore_cert_g.alias} effettivamente dimostra che {g.alias}"
@@ -957,7 +960,7 @@ class verify_submission_problem_specific(verify_submission_gen):
                     edgecut_cert_g = self.goals['edgecut_cert']
                     edgecut_cert_answ: list = ast.literal_eval(edgecut_cert_g.answ)
                     edgecut_cert_answ.remove(query_edge)
-                    if any([w < edges[query_edge][1] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
+                    if any([w < edges[query_edge][2] for _, _, w, _ in list(filter(lambda x: x[3] in edgecut_cert_answ, edges))]):
                         return sef.optimality_NO(g, f"Secondo il certificato {edgecut_cert_g.alias}, il {g.alias} non "
                                                     f"è uno degli archi di peso minimo.")
                     sef.optimality_OK(g, f"Il certificato {edgecut_cert_g.alias} effettivamente dimostra che {g.alias} "
@@ -965,7 +968,7 @@ class verify_submission_problem_specific(verify_submission_gen):
                 if 'cutshore_cert' in self.goals:
                     cutshore_cert_g = self.goals['cutshore_cert']
                     cutshore_cert_answ: list = ast.literal_eval(cutshore_cert_g.answ)
-                    if any([w < edges[query_edge][1] for u, v, w, l in edges if ((u in cutshore_cert_answ) ^ (v in cutshore_cert_answ)) and l != query_edge]):
+                    if any([w < edges[query_edge][2] for u, v, w, l in edges if ((u in cutshore_cert_answ) ^ (v in cutshore_cert_answ)) and l != query_edge]):
                         return sef.optimality_NO(g, f"Secondo il certificato {cutshore_cert_g.alias}, il {g.alias} non "
                                                     f"è l'arco strettamente minore.")
                     sef.optimality_OK(g, f"Il certificato {cutshore_cert_g.alias} effettivamente dimostra che {g.alias}"
@@ -974,7 +977,7 @@ class verify_submission_problem_specific(verify_submission_gen):
                 if 'cyc_cert' in self.goals:
                     cyc_cert_g = self.goals['cyc_cert']
                     cyc_cert_answ: list = ast.literal_eval(cyc_cert_g.answ)
-                    if any([w >= edges[query_edge][1] for _, _, w, _ in list(filter(lambda x: x[3] in cyc_cert_answ, edges))]):
+                    if any([w >= edges[query_edge][2] for _, _, w, _ in list(filter(lambda x: x[3] in cyc_cert_answ, edges))]):
                         return sef.optimality_NO(g, f"Secondo il certificato {cyc_cert_g.alias}, il {g.alias} non "
                                                     f"è l'arco strettamente maggiore.")
                     sef.optimality_OK(g, f"Il certificato {cyc_cert_g.alias} effettivamente dimostra che {g.alias} "
