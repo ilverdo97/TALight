@@ -335,32 +335,27 @@ class Graph:
 
         return list(shore), edgecut
 
-    def find_cyc_cert(self, cut: int, excluded: set) -> list:
+    def __find_cyc_cert(self, visited_nodes: list, visited_edges: list, excluded: list, u: int) -> list:
         """
-        Trova un certificato di ciclo a partire da MST.
+        Trova un certificato di ciclo attraverso DFS.
+        """
+        if u not in visited_nodes:
+            visited_nodes.append(u)
+            for v in range(self.V):
+                if edges := self.adjacency[u][v]:
+                    for edge in edges:
+                        if edge['label'] not in excluded:
+                            return self.__find_cyc_cert(visited_nodes.copy(), visited_edges + [edge['label']], excluded, v)
+        else:
+            return visited_edges
+
+    def find_cyc_cert(self, cut: int, excluded: list) -> list:
+        """
+        Trova un certificato di ciclo.
         """
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        graph = nx.MultiGraph(self.V)
-
-        path_nodes = None
-        for u, v, _, l in self.edges:
-            if l not in excluded:
-                graph.add_edge(u, v)
-
-        for path in nx.all_simple_paths(graph, source=cut_u, target=cut_v):
-            if path != [cut_u, cut_v]:
-                path_nodes = path
-                break
-
-        cycle = []
-        for i in range(len(path_nodes) - 1):
-            u = path_nodes[i]
-            v = path_nodes[i + 1]
-            edges: list = self.adjacency[u][v]
-            e: dict = edges[0]
-            cycle.append(e['label'])
-        return cycle + [cut]
+        return self.__find_cyc_cert([cut_u], [cut_l], excluded, cut_v)
 
     def check_edgecut_cert(self, edgecut: list, excluded: list) -> bool:
         """
@@ -448,12 +443,12 @@ def solver(input_to_oracle: dict) -> dict:
     edge_profile = {}
     if count == len(list_opt_sols):
         edge_profile['answ'] = 'in_all'
-        edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = \
-            graph.find_cutshore_and_edgecut(query_edge, opt_sol, forbidden_edges)
+        edge_profile['cutshore_cert'], edge_profile['edgecut_cert'] = \
+            graph.find_cutshore_and_edgecut(query_edge, list(filter(lambda x: query_edge in x, list_opt_sols))[0], set(forbidden_edges))
     elif count > 0:
         edge_profile['answ'] = 'in_some_but_not_in_all'
-        edge_profile['edgecut_cert'], edge_profile['cutshore_cert'] = \
-            graph.find_cutshore_and_edgecut(query_edge, opt_sol, forbidden_edges)
+        edge_profile['cutshore_cert'], edge_profile['edgecut_cert'] = \
+            graph.find_cutshore_and_edgecut(query_edge, list(filter(lambda x: query_edge in x, list_opt_sols))[0], set(forbidden_edges))
     else:
         edge_profile['answ'] = 'in_no'
         edge_profile['cyc_cert'] = graph.find_cyc_cert(query_edge, forbidden_edges)
