@@ -344,7 +344,7 @@ class Graph:
             for v in range(self.V):
                 if edges := self.adjacency[u][v]:
                     for edge in edges:
-                        if edge['label'] not in excluded:
+                        if edge['label'] not in excluded and edge['label'] not in visited_edges:
                             return self.__find_cyc_cert(visited_nodes.copy(), visited_edges + [edge['label']], excluded, v)
         else:
             return visited_edges
