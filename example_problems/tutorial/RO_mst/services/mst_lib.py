@@ -1,4 +1,5 @@
 import ast
+import queue
 import re
 import networkx as nx
 from sys import stderr
@@ -335,16 +336,37 @@ class Graph:
 
         return list(shore), edgecut
 
-    def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
+    def __find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
         """
         Trova un certificato di ciclo a partire da MST.
         """
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
-        tmp_list = [cut_u]  # lista dei nodi dei quali bisogna esplorare gli archi
-        # TODO: implementare ricerca certificato di ciclo
-        return list()
+        frontier = queue.Queue()
+        explored_nodes = []
+        frontier.put((cut_u, cut_l))
+        explored_nodes.append(cut_v)
+        path = []
+        while True:
+            u, previous = frontier.get()
+            explored_nodes.append(u)
+            path.append(u)
+            for v in range(self.V):
+                for edge in self.adjacency[u][v]:
+                    if edge['label'] != previous:
+                        if v in explored_nodes:
+                            explored_nodes.append(v)
+                            return explored_nodes
+                        else:
+                            frontier.put((v, edge['label']))
+                            path.pop()
+
+    def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
+        explored_nodes = self.__find_cyc_cert(cut, tree, excluded)
+        cycle = []
+        for i in range(len(explored_nodes) - 1):
+            cycle.append(self.adjacency[explored_nodes[i]][explored_nodes[i + 1]][3])
+        return cycle
 
     def check_edgecut_cert(self, edgecut: list, excluded: list) -> bool:
         """
