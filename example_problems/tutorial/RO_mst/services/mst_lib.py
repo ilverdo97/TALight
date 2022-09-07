@@ -242,9 +242,8 @@ class Graph:
         """
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        subtree = {cut_u}       # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
-        tmp_list = [cut_u]      # lista dei nodi dei quali bisogna esplorare gli archi
-
+        subtree = {cut_u}  # sotto-abero di partenza (l'altro sotto-albero corrisponde a V\subtree)
+        tmp_list = [cut_u]  # lista dei nodi dei quali bisogna esplorare gli archi
         # costruzione dei due sotto-alberi generati dal taglio
         while tmp_list:
             u = tmp_list.pop()
@@ -252,24 +251,20 @@ class Graph:
                 # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
                 if v not in subtree and (edges := self.adjacency[u][v]):
                     # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
-                    if edges[0]['label'] in tree and edges[0]['label'] != cut_l:
-                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
-                        subtree.add(v)      # aggiungi v al sotto-albero
+                    for edge in edges:
+                        if edge['label'] in tree and edge['label'] != cut_l:
+                            tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                            subtree.add(v)  # aggiungi v al sotto-albero
+                            break
 
         # ricerca di un sostituito per l'arco tagliato, ovvero un arco che riconnette i due sotto-alberi,
         # con peso uguale a quello tagliato (non può essere minore)
-        for u, v, weight, label in self.edges:
-            # se l'arco, non è quello tagliato
-            # non è nella lista degli archi esclusi
-            # non appartiene all'albero
-            # i nodi che collega appartengono a due sotto-alberi diversi
-            # il peso è equivalente a quello dell'arco tagliato
-            if label != cut_l and \
-                    label not in tree and \
-                    label not in excluded and \
-                    ((u in subtree) ^ (v in subtree)) and \
-                    weight == cut_w:
-                return label
+        for u in subtree:
+            for v in range(self.V):
+                if v not in subtree and (edges_uv := self.adjacency[u][v]):
+                    for edge in edges_uv:
+                        if edge['label'] != cut_l and edge['label'] not in excluded and edge['weight'] == cut_w:
+                            return edge['label']
 
         # non esiste un sostituto per l'arco tagliato
         return None
@@ -318,29 +313,27 @@ class Graph:
                 # se il nodo v non fa parte di questo sotto-albero ed esistono archi che collegano u e v
                 if v not in subtree and (edges := self.adjacency[u][v]):
                     # se il primo arco che collega u e v non fa parte dell'albero e non è l'arco tagliato
-                    if edges[0]['label'] in tree and edges[0]['label'] != cut_l:
-                        tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
-                        subtree.add(v)      # aggiungi v al sotto-albero
+                    for edge in edges:
+                        if edge['label'] in tree and edge['label'] != cut_l:
+                            tmp_list.append(v)  # aggiungi v ai nodi di cui esplorare gli archi
+                            subtree.add(v)  # aggiungi v al sotto-albero
+                            break
 
         shore = subtree.copy()
         # verifica che sia effettivamente la shore più piccola, altrimenti inverti
         if len(shore) > (self.V // 2):
             shore = set(range(self.V)).difference(shore)
 
-        edgecut = [cut_l]
+        edgecut = []
         # ricerca dei sostituiti per l'arco tagliato, ovvero un arco che riconnette i due sotto-alberi
-        for u, v, weight, label in self.edges:
-            # se l'arco, non è quello tagliato
-            # non è nella lista degli archi esclusi
-            # i nodi che collega appartengono a due sotto-alberi diversi
-            if label != cut_l and \
-                    label not in tree and \
-                    label not in excluded and \
-                    ((u in subtree) ^ (v in subtree)):
-                edgecut.append(label)
+        for u in subtree:
+            for v in range(self.V):
+                if v not in subtree and (edges_uv := self.adjacency[u][v]):
+                    for edge in edges_uv:
+                        if edge['label'] not in excluded:
+                            edgecut.append(edge['label'])
 
         return list(shore), edgecut
-
 
     def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
         """
