@@ -1,5 +1,4 @@
 import ast
-import queue
 import re
 import networkx as nx
 from sys import stderr
@@ -344,20 +343,22 @@ class Graph:
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
         graph = nx.MultiGraph(self.V)
 
+        path_nodes = None
         for u, v, _, _ in self.edges:
             graph.add_edge(u, v)
+
         for path in nx.all_simple_paths(graph, source=cut_u, target=cut_v):
             if path != [cut_u, cut_v]:
-                return path
+                path_nodes = path
+                break
 
-    def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
-        explored_nodes = self.__find_cyc_cert(cut, tree, excluded)
         cycle = []
-        for i in range(len(explored_nodes) - 1):
-            u = explored_nodes[i]
-            v = explored_nodes[i + 1]
-            edges = self.adjacency[u][v]
-            cycle.append(edges[0]['label'])
+        for i in range(len(path_nodes) - 1):
+            u = path_nodes[i]
+            v = path_nodes[i + 1]
+            edges: list = self.adjacency[u][v]
+            e: dict = edges[0]
+            cycle.append(e['label'])
         return cycle + [cut]
 
     def check_edgecut_cert(self, edgecut: list, excluded: list) -> bool:
