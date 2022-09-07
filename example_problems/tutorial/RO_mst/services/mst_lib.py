@@ -342,31 +342,23 @@ class Graph:
         """
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        frontier = queue.Queue()
-        explored_nodes = []
-        frontier.put((cut_u, cut_l))
-        explored_nodes.append(cut_v)
-        path = []
-        while True:
-            u, previous = frontier.get()
-            explored_nodes.append(u)
-            path.append(u)
-            for v in range(self.V):
-                for edge in self.adjacency[u][v]:
-                    if edge['label'] != previous:
-                        if v in explored_nodes:
-                            explored_nodes.append(v)
-                            return explored_nodes
-                        else:
-                            frontier.put((v, edge['label']))
-                            path.pop()
+        graph = nx.MultiGraph(self.V)
+
+        for u, v, _, _ in self.edges:
+            graph.add_edge(u, v)
+        for path in nx.all_simple_paths(graph, source=cut_u, target=cut_v):
+            if path != [cut_u, cut_v]:
+                return path
 
     def find_cyc_cert(self, cut: int, tree: list, excluded: set) -> list:
         explored_nodes = self.__find_cyc_cert(cut, tree, excluded)
         cycle = []
         for i in range(len(explored_nodes) - 1):
-            cycle.append(self.adjacency[explored_nodes[i]][explored_nodes[i + 1]][3])
-        return cycle
+            u = explored_nodes[i]
+            v = explored_nodes[i + 1]
+            edges = self.adjacency[u][v]
+            cycle.append(edges[0]['label'])
+        return cycle + [cut]
 
     def check_edgecut_cert(self, edgecut: list, excluded: list) -> bool:
         """
