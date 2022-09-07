@@ -408,6 +408,8 @@ class Graph:
                 return False
             u, v, _, _ = self.edges[cyc_cert[i]]
             edge1 = {u, v}
+            if cyc_cert[i + 1] in excluded:
+                return False
             u, v, _, _ = self.edges[cyc_cert[i + 1]]
             edge2 = {u, v}
             if len(edge1.intersection(edge2)) != 1:
