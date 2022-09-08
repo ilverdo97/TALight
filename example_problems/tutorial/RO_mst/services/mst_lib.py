@@ -335,19 +335,22 @@ class Graph:
 
         return list(shore), edgecut
 
-    def __find_cyc_cert(self, visited_nodes: list, visited_edges: list, excluded: list, u: int) -> list:
+    def __find_cyc_cert(self, visited_nodes: list, visited_edges: list, excluded: list, u: int, target: int) -> list | None:
         """
         Trova un certificato di ciclo attraverso DFS.
         """
-        if u not in visited_nodes:
+        if u == target:
+            return visited_edges
+        elif u not in visited_nodes:
             visited_nodes.append(u)
             for v in range(self.V):
                 if edges := self.adjacency[u][v]:
                     for edge in edges:
                         if edge['label'] not in excluded and edge['label'] not in visited_edges:
-                            return self.__find_cyc_cert(visited_nodes.copy(), visited_edges + [edge['label']], excluded, v)
+                            if (path := self.__find_cyc_cert(visited_nodes, visited_edges + [edge['label']], excluded, v, target)) is not None:
+                                return path
         else:
-            return visited_edges
+            return None
 
     def find_cyc_cert(self, cut: int, excluded: list) -> list:
         """
@@ -355,7 +358,7 @@ class Graph:
         """
         # ricerca arco tagliato nella lista degli archi del grafo
         cut_u, cut_v, cut_w, cut_l = list(filter(lambda x: x[3] == cut, self.edges))[0]
-        return self.__find_cyc_cert([cut_u], [cut_l], excluded, cut_v)
+        return self.__find_cyc_cert(list(), list(), excluded + [cut_l], cut_v, cut_u) + [cut_l]
 
     def check_edgecut_cert(self, edgecut: list, excluded: list) -> bool:
         """
