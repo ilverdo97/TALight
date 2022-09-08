@@ -43,7 +43,7 @@ enti_obbligati:List[str],partialDPtable:List[List[int]], long_answer_dict:Dict):
     "    if feedback_dict_TAL != None:\n",
     "        display(feedback_dict_TAL['feedback_string'])\n",
 
-Esempio concreto da foglio Jupyther:
+Esempio concreto da foglio Jupyter:
 rtal_connect(RTAL_URL, 'RO_knapsack', 'check', {'labels':['A', 'B', 'C'], 'costs':[2, 3 ,4], 'vals':[13, 17, 19], 'Knapsack_Capacity':5, 'alias_dict':alias_dict={'opt_sol1':'opt_sol','opt_val1':'opt_val'}, 'answer_dict'={'opt_sol1':{'A','B'},'17'}:, 'color_implementation':'html', 'with_output_files':'0'}, rtaltoken=RTAL_PRIVATE_ACCESS_TOKEN)
 
 
